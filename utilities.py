@@ -27,6 +27,7 @@ import pydot, graphviz
 from keras.utils import np_utils, plot_model
 from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
+from keras.applications.resnet50 import preprocess_input
 
 
 
@@ -91,7 +92,7 @@ def read_image(root_dir, db, table):
 	return img_list, label_list
 
 
-def create_generator_LOSO(x, y, classes, sub, train_phase=True):
+def create_generator_LOSO(x, y, classes, sub, train_phase='true'):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
@@ -103,7 +104,7 @@ def create_generator_LOSO(x, y, classes, sub, train_phase=True):
 
 	for subj_counter in range(len(x)):
 		# train case
-		if train_phase:
+		if train_phase == 'true':
 			if subj_counter != sub:
 				for each_file in x[subj_counter]:
 
@@ -117,6 +118,27 @@ def create_generator_LOSO(x, y, classes, sub, train_phase=True):
 				for each_label in temp_y:
 					# Y.append(each_label)
 					Y += [each_label]
+
+		# for svc case
+		elif train_phase == 'svc':
+			if subj_counter != sub:
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(224, 224))
+					image = img.img_to_array(image)
+					image = np.expand_dims(image, axis=0)
+					image = preprocess_input(image)
+					X += [image]
+
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+
+				for item in y[subj_counter]:
+					non_binarized_Y += [item]
+
+				for each_label in temp_y:
+					# Y.append(each_label)
+					Y += [each_label]			
+
 				
 		# test case
 		else:
@@ -135,13 +157,18 @@ def create_generator_LOSO(x, y, classes, sub, train_phase=True):
 					Y += [each_label]			
 					non_binarized_Y += [y[subj_counter]]
 
+
 	X = np.vstack(X)
 	Y = np.vstack(Y)
 
 
-	if train_phase:
+	if train_phase == 'true':
 		yield X, Y
+	elif train_phase == 'svc':
+		# non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		yield X, Y, non_binarized_Y
 	else:
+		# non_binarized_Y = non_binarized_Y[0]
 		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
 		yield X, Y, non_binarized_Y
 
@@ -158,21 +185,23 @@ def create_generator_nonLOSO(x, y, classes, train_phase=True):
 	Y = []
 	non_binarized_Y = []
 
-	# train case
-	if train_phase:
+	for subj_counter in range(len(x)):
+		# train case
+		if train_phase:
 
-		for each_file in x[subj_counter]:
-			image = img.load_img(each_file, target_size=(224, 224))
-			image = img.img_to_array(image)
-			image = np.expand_dims(image, axis=0)
-			image = preprocess_input(image)
-			X += [image]
+			for each_file in x[subj_counter]:
+				image = img.load_img(each_file, target_size=(224, 224))
+				image = img.img_to_array(image)
+				image = np.expand_dims(image, axis=0)
+				image = preprocess_input(image)
+				X += [image]
 
-		temp_y = np_utils.to_categorical(y[subj_counter], classes)
-		for each_label in temp_y:
-			# Y.append(each_label)
-			Y += [each_label]
-				
+			temp_y = np_utils.to_categorical(y[subj_counter], classes)
+			for each_label in temp_y:
+				# Y.append(each_label)
+				Y += [each_label]
+				non_binarized_Y += [y[subj_counter]]
+					
 
 
 	X = np.vstack(X)

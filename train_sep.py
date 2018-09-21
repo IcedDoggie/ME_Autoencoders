@@ -23,7 +23,7 @@ from keras.models import Sequential, Model
 from keras.utils import np_utils, plot_model
 
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
-from utilities import class_merging, read_image, create_generator_LOSO
+from utilities import class_merging, read_image, create_generator_LOSO, create_generator_nonLOSO
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder
@@ -92,7 +92,7 @@ def train_sep():
 		layer.trainable = False
 	temporal_model = temporal_module(data_dim, timesteps_TIM, classes)
 	temporal_model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
-	loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub)
+	loso_generator = create_generator_nonLOSO(total_list, total_labels, classes)
 
 	for X, y in loso_generator:
 		vgg_model.fit_generator(datagen.flow(X, y, batch_size = batch_size, shuffle=True), steps_per_epoch = int(len(X)/batch_size), epochs = epochs, callbacks=[history, stopping])
@@ -120,7 +120,7 @@ def train_sep():
 	total_list = smic_list
 	total_labels = smic_labels
 
-	test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, train_phase = False)
+	test_loso_generator = create_generator_nonLOSO(total_list, total_labels, classes, train_phase = False)
 	for X, y, non_binarized_y in test_loso_generator:
 		# Spatial Encoding
 

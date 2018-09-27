@@ -92,7 +92,7 @@ def read_image(root_dir, db, table):
 	return img_list, label_list
 
 
-def create_generator_LOSO(x, y, classes, sub, train_phase='true'):
+def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='true'):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
@@ -108,7 +108,7 @@ def create_generator_LOSO(x, y, classes, sub, train_phase='true'):
 			if subj_counter != sub:
 				for each_file in x[subj_counter]:
 
-					image = img.load_img(each_file, target_size=(224, 224))
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
 					image = preprocess_input(image)
@@ -124,7 +124,7 @@ def create_generator_LOSO(x, y, classes, sub, train_phase='true'):
 			if subj_counter != sub:
 				for each_file in x[subj_counter]:
 
-					image = img.load_img(each_file, target_size=(224, 224))
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
 					image = preprocess_input(image)
@@ -145,7 +145,7 @@ def create_generator_LOSO(x, y, classes, sub, train_phase='true'):
 			if subj_counter == sub:
 				for each_file in x[subj_counter]:
 
-					image = img.load_img(each_file, target_size=(224, 224))
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
 					image = preprocess_input(image)

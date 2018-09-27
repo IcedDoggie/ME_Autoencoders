@@ -109,13 +109,6 @@ def layer_wise_autoencoder(input_shape, encoded_dim, decoded_dim):
 	
 	return autoencoder1, encoder1
 
-	# SAMPLES
-	# distorted_input1 = Dropout(.1)(input_img)
-	# encoded1 = Dense(encoded_dim, activation = 'sigmoid')(distorted_input1)
-	# encoded1_bn = BatchNormalization()(encoded1)
-	# decoded1 = Dense(decoded_dim, activation = 'sigmoid')(encoded1_bn)
-	# autoencoder1 = Model(input = input_img, output = decoded1)
-	# encoder1 = Model(input = input_img, output = encoded1_bn)
 
 def convolutional_autoencoder(spatial_size, channel_first=True, weights_path=None):
 	model = Sequential()

@@ -27,6 +27,9 @@ from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
 from keras.applications.inception_v3 import InceptionV3
 from keras.applications.mobilenet import MobileNet
+from keras.applications.xception import Xception
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
+from keras import backend as K
 
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
 from utilities import class_merging, read_image, create_generator_LOSO
@@ -64,7 +67,28 @@ def test_inceptionv3_imagenet():
 
 	return inceptionv3
 
-def test(type_of_test):
+def test_mobilenet_imagenet():
+	mobilenet = MobileNet(weights = 'imagenet')
+	mobilenet = Model(inputs = mobilenet.input, outputs = mobilenet.layers[-2].output)
+	plot_model(mobilenet, to_file='mobilenet.png', show_shapes=True)
+
+	return mobilenet
+
+def test_xception_imagenet():
+	xception = Xception(weights = 'imagenet')
+	xception = Model(inputs = xception.input, outputs = xception.layers[-2].output)
+	plot_model(xception, to_file='xception.png', show_shapes=True)
+
+	return xception
+
+def test_inceptionResV2_imagenet():
+	inceptionresnetv2 = InceptionResNetV2(weights = 'imagenet')
+	inceptionresnetv2 = Model(inputs = inceptionresnetv2.input, outputs = inceptionresnetv2.layers[-2].output)
+	plot_model(inceptionresnetv2, to_file='inceptionresnetv2.png', show_shapes=True)
+
+	return inceptionresnetv2	
+
+def test(type_of_test, tf_backend_flag = False):
 	# general variables and path
 	working_dir = '/home/ice/Documents/ME_Autoencoders/'
 	root_dir = '/media/ice/OS/Datasets/Combined Dataset/'
@@ -76,7 +100,7 @@ def test(type_of_test):
 	samm_db = 'SAMM_TIM10'
 	smic_db = 'SMIC_TIM10'
 	classes = 3
-	spatial_size = 224
+	spatial_size = 299
 	channels = 3
 	timesteps_TIM = 10
 	data_dim = 4096
@@ -112,6 +136,11 @@ def test(type_of_test):
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
 	batch_size = 1
 	epochs = 1	
+	total_samples = 0
+
+	# backend
+	if tf_backend_flag:
+		K.set_image_dim_ordering('tf')
 
 	# pre-process input images and normalization
 	for sub in range(len(total_list)):
@@ -120,7 +149,7 @@ def test(type_of_test):
 		model = type_of_test()
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, train_phase='svc')
+		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase='svc')
 
 		for X, y, non_binarized_y in loso_generator:
 			# non_binarized_y = non_binarized_y[0]
@@ -133,8 +162,8 @@ def test(type_of_test):
 		del X, y
 
 		# Test Time 
-		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, train_phase = False)
-		
+		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase = False)
+
 
 		for X, y, non_binarized_y in test_loso_generator:
 			# Spatial Encoding
@@ -158,7 +187,8 @@ def test(type_of_test):
 			file = open(root_dir + 'Classification/' + 'Result/'+ 'Combined Dataset' + '/f1_' + str(train_id) +  '.txt', 'a')
 			file.write(str(f1) + "\n")
 			file.close()
-			war = weighted_average_recall(tot_mat, classes, len(non_binarized_y))
+			total_samples += len(non_binarized_y)
+			war = weighted_average_recall(tot_mat, classes, total_samples)
 			uar = unweighted_average_recall(tot_mat, classes)
 			print("war: " + str(war))
 			print("uar: " + str(uar))
@@ -169,35 +199,60 @@ def test(type_of_test):
 
 	return f1, war, uar, tot_mat
 
-f1, war, uar, tot_mat = test(test_res50_imagenet)
-f1_2, war_2, uar_2, tot_mat_2 = test(test_vgg16_imagenet)
-f1_3, war_3, uar_3, tot_mat_3 = test(test_vgg19_imagenet)
-f1_4, war_4, uar_4, tot_mat_4 = test(test_inceptionv3_imagenet)
+# f1, war, uar, tot_mat = test(test_res50_imagenet)
+# f1_2, war_2, uar_2, tot_mat_2 = test(test_vgg16_imagenet)
+# f1_3, war_3, uar_3, tot_mat_3 = test(test_vgg19_imagenet)
+# f1_4, war_4, uar_4, tot_mat_4 = test(test_inceptionv3_imagenet)
+# f1_5, war_5, uar_5, tot_mat_5 = test(test_mobilenet_imagenet, tf_backend_flag = True)
+# f1_6, war_6, uar_6, tot_mat_6 = test(test_xception_imagenet, tf_backend_flag = True)
+f1_7, war_7, uar_7, tot_mat_7 = test(test_inceptionResV2_imagenet)
 
-print("RESULTS FOR RES 50")
-print("F1: " + str(f1))
-print("war: " + str(war))
-print("uar: " + str(uar))
-print(tot_mat)
 
-print("RESULTS FOR VGG 16")
-print("F1: " + str(f1_2))
-print("war: " + str(war_2))
-print("uar: " + str(uar_2))
-print(tot_mat_2)
+# print("RESULTS FOR RES 50")
+# print("F1: " + str(f1))
+# print("war: " + str(war))
+# print("uar: " + str(uar))
+# print(tot_mat)
 
-print("RESULTS FOR VGG 19")
-print("F1: " + str(f1_3))
-print("war: " + str(war_3))
-print("uar: " + str(uar_3))
-print(tot_mat_3)
+# print("RESULTS FOR VGG 16")
+# print("F1: " + str(f1_2))
+# print("war: " + str(war_2))
+# print("uar: " + str(uar_2))
+# print(tot_mat_2)
 
-print("RESULTS FOR InceptionV3")
-print("F1: " + str(f1_4))
-print("war: " + str(war_4))
-print("uar: " + str(uar_4))
-print(tot_mat_4)
+# print("RESULTS FOR VGG 19")
+# print("F1: " + str(f1_3))
+# print("war: " + str(war_3))
+# print("uar: " + str(uar_3))
+# print(tot_mat_3)
+
+# print("RESULTS FOR InceptionV3")
+# print("F1: " + str(f1_4))
+# print("war: " + str(war_4))
+# print("uar: " + str(uar_4))
+# print(tot_mat_4)
+
+# print("RESULTS FOR Mobilenet")
+# print("F1: " + str(f1_4))
+# print("war: " + str(war_4))
+# print("uar: " + str(uar_4))
+# print(tot_mat_4)
+
+# print("RESULTS FOR Xception")
+# print("F1: " + str(f1_6))
+# print("war: " + str(war_6))
+# print("uar: " + str(uar_6))
+# print(tot_mat_6)
+
+print("RESULTS FOR inceptionResV2")
+print("F1: " + str(f1_7))
+print("war: " + str(war_7))
+print("uar: " + str(uar_7))
+print(tot_mat_7)
+
+
 # test_res50_imagenet()
 # test_vgg16_imagenet()
 # test_vgg19_imagenet()
 # test_inceptionv3_imagenet()
+# test_xception_imagenet()

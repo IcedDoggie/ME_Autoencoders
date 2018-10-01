@@ -27,7 +27,7 @@ import pydot, graphviz
 from keras.utils import np_utils, plot_model
 from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
-from keras.applications.resnet50 import preprocess_input
+# from keras.applications.resnet50 import preprocess_input as res_preprocess_input
 
 
 
@@ -96,6 +96,7 @@ def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='tru
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
+
 	
 	# Read and Yield
 	X = []

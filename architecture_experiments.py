@@ -102,9 +102,9 @@ def train_softmax(type_of_test, train_id, feature_type = 'grayscale', db='Combin
 		# clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase='svc')
 
-		# model freezing
-		for layer in model.layers[:-2]:
-			layer.trainable = False
+		# model freezing (dedicated to networks.py)
+		# for layer in model.layers[:-2]:
+		# 	layer.trainable = False
 		for X, y, non_binarized_y in loso_generator:
 			model.fit(X, y, batch_size = batch_size, epochs = epochs, callbacks=[stopping])
 			# spatial_features = model.predict(X, batch_size = batch_size)
@@ -151,6 +151,7 @@ def train_softmax(type_of_test, train_id, feature_type = 'grayscale', db='Combin
 		# Resource CLear up
 		del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat
+	
 def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
 
 
@@ -221,9 +222,9 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase='svc')
 
-		# model freezing
-		for layer in model.layers[:-2]:
-			layer.trainable = False
+		# model freezing (dedicated to networks.py)
+		# for layer in model.layers[:-2]:
+		# 	layer.trainable = False
 		for X, y, non_binarized_y in loso_generator:
 			model.fit(X, y, batch_size = batch_size, epochs = epochs, callbacks=[stopping])
 			model = Model(inputs = model.input, outputs = model.layers[-2].output)

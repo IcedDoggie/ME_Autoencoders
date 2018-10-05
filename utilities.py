@@ -403,3 +403,81 @@ def class_merging(table):
 	# print(table)
 
 	return table
+
+def class_discretization(table, db='CASME_2'):
+	# neg = ['repression', 'disgust', 'anger', 'contempt', 'fear', 'sadness']
+	# pos = ['happiness']
+	# other = ['other', 'others']
+	rows_to_remove = []
+	table = table[0]
+
+	if db == 'CASME_2':
+		for counter in range(len(table)):
+			item = table[counter]
+			item[-1] = item[-1].lower()
+			if item[-1] == 'happiness':
+				table[counter, -1] = 1
+			elif item[-1] == 'disgust':
+				table[counter, -1] = 2
+			elif item[-1] == 'repression':
+				table[counter, -1] = 3
+			elif item[-1] == 'surprise':
+				table[counter, -1] = 4
+			elif item[-1] == 'others':
+				table[counter, -1] = 5
+			elif item[-1] == 'fear' or item[-1] == 'sadness':
+				rows_to_remove += [counter]		
+		table = np.delete(table, rows_to_remove, 0)	
+
+	elif db == 'SAMM':
+		for counter in range(len(table)):
+			item = table[counter]
+			item[-1] = item[-1].lower()
+			if item[-1] == 'anger':
+				table[counter, -1] = 1
+			elif item[-1] == 'contempt':
+				table[counter, -1] = 2
+			elif item[-1] == 'disgust':
+				table[counter, -1] = 3
+			elif item[-1] == 'fear':
+				table[counter, -1] = 4
+			elif item[-1] == 'happiness':
+				table[counter, -1] = 5	
+			elif item[-1] == 'other':
+				table[counter, -1] = 6
+			elif item[-1] == 'sadness':
+				table[counter, -1] = 7		
+			elif item[-1] == 'surprise':
+				table[counter, -1] = 8
+
+
+
+	# table = np.delete(table, rows_to_remove, 0)
+	# print(table)
+
+	return table
+	
+def majority_vote(predict, test_X, batch_size, timesteps_TIM):
+	# For Majority Vote (make batch size divisible by 10(TIM No.))
+	voted_predict = []
+	i = 0
+	while i < int(len(predict)/timesteps_TIM) - 1:
+		fraction_of_predict = predict[i * timesteps_TIM : (i+1) * timesteps_TIM]
+		# print(fraction_of_predict)
+		fraction_of_predict = np.asarray(fraction_of_predict)
+		frequencies = np.bincount(fraction_of_predict)
+		highest_frequency = np.argmax(frequencies)
+		voted_predict += [highest_frequency]
+
+		i += 1
+		if i+1 >= int(len(predict)/timesteps_TIM) :
+			fraction_of_predict = predict[(i) * timesteps_TIM : len(predict)]
+			fraction_of_predict = np.asarray(fraction_of_predict)
+			frequencies = np.bincount(fraction_of_predict)
+			highest_frequency = np.argmax(frequencies)
+			voted_predict += [highest_frequency]					
+
+	# print(voted_predict)
+	predict = voted_predict	
+
+	return predict

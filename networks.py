@@ -134,6 +134,9 @@ def train_res50_imagenet():
 	resnet50 = Model(inputs = resnet50.input, outputs = dense_classifier)
 	plot_model(resnet50, to_file='resnet50.png', show_shapes=True)
 
+	for layer in resnet50.layers[:-2]:
+		layer.trainable = False	
+
 	return resnet50
 
 def train_vgg16_imagenet():
@@ -143,6 +146,9 @@ def train_vgg16_imagenet():
 	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)	
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
 
+	for layer in vgg16.layers[:-3]:
+		layer.trainable = False
+
 	return vgg16
 
 def train_inceptionv3_imagenet():
@@ -151,7 +157,10 @@ def train_inceptionv3_imagenet():
 	dense_classifier = Dense(3, activation = 'softmax')(last_layer)
 	inceptionv3 = Model(inputs = inceptionv3.input, outputs = dense_classifier)	
 	plot_model(inceptionv3, to_file='inceptionv3.png', show_shapes=True)
-
+	
+	for layer in inceptionv3.layers[:-2]:
+		layer.trainable = False	
+		
 	return inceptionv3
 
 def train_xception_imagenet():

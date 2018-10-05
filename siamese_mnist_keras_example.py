@@ -22,6 +22,11 @@ from keras.models import Model
 from keras.layers import Input, Flatten, Dense, Dropout, Lambda
 from keras.optimizers import RMSprop
 from keras import backend as K
+from keras.models import Sequential, Model
+from keras.layers.core import Flatten, Dense, Dropout
+from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D
+from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSampling2D
+from keras.layers import BatchNormalization, Input
 
 num_classes = 10
 epochs = 20
@@ -66,18 +71,61 @@ def create_pairs(x, digit_indices):
 			labels += [1, 0]
 	return np.array(pairs), np.array(labels)
 
-
 def create_base_network(input_shape):
-	'''Base network to be shared (eq. to feature extraction).
-	'''
-	input = Input(shape=input_shape)
-	x = Flatten()(input)
-	x = Dense(128, activation='relu')(x)
-	x = Dropout(0.1)(x)
-	x = Dense(128, activation='relu')(x)
-	x = Dropout(0.1)(x)
-	x = Dense(128, activation='relu')(x)
-	return Model(input, x)
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    input = Input(shape=input_shape)
+    x = Flatten()(input)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    return Model(input, x)	
+
+
+# def create_base_network(input_shape):
+# 	'''Base network to be shared (eq. to feature extraction).
+# 	'''
+# 	input = Input(shape=input_shape)
+# 	x = ZeroPadding2D((1, 1))(input)
+# 	x = Conv2D(64, (3, 3), activation='relu')(x)
+# 	x = ZeroPadding2D((1, 1))(x)
+# 	x = Conv2D(64, (3, 3), activation = 'relu')(x)
+# 	x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+# 	x = ZeroPadding2D((1, 1))(input)
+# 	x = Conv2D(128, (3, 3), activation='relu')(x)
+# 	x = ZeroPadding2D((1, 1))(x)
+# 	x = Conv2D(128, (3, 3), activation = 'relu')(x)
+# 	x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+# 	x = ZeroPadding2D((1, 1))(input)
+# 	x = Conv2D(256, (3, 3), activation='relu')(x)
+# 	x = ZeroPadding2D((1, 1))(x)
+# 	x = Conv2D(256, (3, 3), activation = 'relu')(x)
+# 	x = MaxPooling2D((2,2), strides=(2,2))(x)	
+
+# 	x = ZeroPadding2D((1, 1))(input)
+# 	x = Conv2D(512, (3, 3), activation='relu')(x)
+# 	x = ZeroPadding2D((1, 1))(x)
+# 	x = Conv2D(512, (3, 3), activation = 'relu')(x)
+# 	x = MaxPooling2D((2,2), strides=(2,2))(x)	
+
+# 	x = ZeroPadding2D((1, 1))(input)
+# 	x = Conv2D(512, (3, 3), activation='relu')(x)
+# 	x = ZeroPadding2D((1, 1))(x)
+# 	x = Conv2D(512, (3, 3), activation = 'relu')(x)
+# 	x = MaxPooling2D((2,2), strides=(2,2))(x)
+
+# 	x = Flatten()(x)
+# 	x = Dense(4096, activation = 'relu')(x)
+# 	x = Dropout(0.5)(x)
+# 	x = Dense(4096, activation = 'relu')(x)			
+# 	x = Dropout(0.5)(x)
+# 	x = Dense(4096, activation='relu')(x)
+	
+# 	return Model(input, x)
 
 
 def compute_accuracy(y_true, y_pred):
@@ -100,6 +148,7 @@ x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
 input_shape = x_train.shape[1:]
+# print(input_shape)
 
 # create training+test positive and negative pairs
 digit_indices = [np.where(y_train == i)[0] for i in range(num_classes)]
@@ -110,7 +159,6 @@ te_pairs, te_y = create_pairs(x_test, digit_indices)
 
 # network definition
 base_network = create_base_network(input_shape)
-
 input_a = Input(shape=input_shape)
 input_b = Input(shape=input_shape)
 
@@ -126,6 +174,7 @@ distance = Lambda(euclidean_distance,
 model = Model([input_a, input_b], distance)
 
 # train
+# print(tr_pairs[:, 0].shape)
 rms = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,

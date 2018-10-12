@@ -457,27 +457,3 @@ def class_discretization(table, db='CASME_2'):
 
 	return table
 	
-def majority_vote(predict, test_X, batch_size, timesteps_TIM):
-	# For Majority Vote (make batch size divisible by 10(TIM No.))
-	voted_predict = []
-	i = 0
-	while i < int(len(predict)/timesteps_TIM) - 1:
-		fraction_of_predict = predict[i * timesteps_TIM : (i+1) * timesteps_TIM]
-		# print(fraction_of_predict)
-		fraction_of_predict = np.asarray(fraction_of_predict)
-		frequencies = np.bincount(fraction_of_predict)
-		highest_frequency = np.argmax(frequencies)
-		voted_predict += [highest_frequency]
-
-		i += 1
-		if i+1 >= int(len(predict)/timesteps_TIM) :
-			fraction_of_predict = predict[(i) * timesteps_TIM : len(predict)]
-			fraction_of_predict = np.asarray(fraction_of_predict)
-			frequencies = np.bincount(fraction_of_predict)
-			highest_frequency = np.argmax(frequencies)
-			voted_predict += [highest_frequency]					
-
-	# print(voted_predict)
-	predict = voted_predict	
-
-	return predict

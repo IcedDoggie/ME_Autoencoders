@@ -32,6 +32,8 @@ from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_re
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
 from networks import test_res50_finetuned, test_vgg16_finetuned, test_inceptionv3_finetuned
 from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet
+from evaluationmatrix import majority_vote
+
 
 def train_softmax(type_of_test, train_id, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
 
@@ -243,6 +245,8 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 			# Spatial Encoding
 			spatial_features = model.predict(X, batch_size = batch_size)
 			predicted_class = clf.predict(spatial_features)
+			# predicted_class = temporal_predictions_averaging(predicted_class, timesteps_TIM)
+			
 
 			non_binarized_y = non_binarized_y[0]
 

@@ -39,9 +39,9 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/ice/Documents/ME_Autoencoders/'
-	root_dir = '/media/ice/OS/Datasets/' + db + '/'
-	weights_path = '/media/ice/OS/Datasets/'
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -51,12 +51,12 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 		casme2_db = 'CASME2_TIM10'
 		samm_db = 'SAMM_TIM10'
 		smic_db = 'SMIC_TIM10'
-		timesteps_TIM = 10
+		timesteps_TIM = 1
 	elif feature_type == 'flow':
 		casme2_db = 'CASME2_Optical'
 		samm_db = 'SAMM_Optical'
 		smic_db = 'SMIC_Optical'
-		timesteps_TIM = 9	
+		timesteps_TIM = 1	
 
 	classes = 5
 	spatial_size = spatial_size
@@ -91,7 +91,7 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
 	batch_size  = 30
-	epochs = 1
+	epochs = 50
 	total_samples = 0
 
 
@@ -128,16 +128,15 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 
 
 		for X, y, non_binarized_y in test_loso_generator:
-
 			# Spatial Encoding
 			spatial_features = model.predict(X, batch_size = batch_size)
 			if tf_backend_flag == True:
+
 				spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
 
 			predicted_class = clf.predict(spatial_features)
-			predicted_class = temporal_predictions_averaging(predicted_class, timesteps_TIM)
+
 			non_binarized_y = non_binarized_y[0]
-			non_binarized_y = non_binarized_y[::timesteps_TIM]
 
 			print(predicted_class)
 			print(non_binarized_y)	
@@ -312,8 +311,11 @@ def test(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datase
 		del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_g', feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg16_imagenet, 'vgg16_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False)
 
+f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  test(test_res50_imagenet, 'res50_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False)
+
+f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_inceptionv3_imagenet, 'incepv3_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
 print("RESULTS FOR VGG 16_g")
 print("F1: " + str(f1))
@@ -322,3 +324,19 @@ print("uar: " + str(uar))
 print("Macro_f1: " + str(macro_f1))
 print("Weighted_f1: " + str(weighted_f1))
 print(tot_mat)	
+
+print("RESULTS FOR RES 50_g")
+print("F1: " + str(f1_2))
+print("war: " + str(war_2))
+print("uar: " + str(uar_2))
+print("Macro_f1: " + str(macro_f1_2))
+print("Weighted_f1: " + str(weighted_f1_2))
+print(tot_mat_2)	
+
+print("RESULTS FOR Incep V3_g")
+print("F1: " + str(f1_3))
+print("war: " + str(war_3))
+print("uar: " + str(uar_3))
+print("Macro_f1: " + str(macro_f1_3))
+print("Weighted_f1: " + str(weighted_f1_3))
+print(tot_mat_3)

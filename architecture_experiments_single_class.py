@@ -35,7 +35,7 @@ from networks import train_res50_imagenet, train_vgg16_imagenet, train_inception
 from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 
-def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
+def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
@@ -105,7 +105,7 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 		model = type_of_test()
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase='svc')
+		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
 		# model freezing (dedicated to networks.py)
 		# for layer in model.layers[:-2]:
@@ -124,7 +124,7 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 		del X, y
 
 		# Test Time 
-		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase = False)
+		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
 
 
 		for X, y, non_binarized_y in test_loso_generator:
@@ -176,7 +176,7 @@ def train(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datas
 		del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
-def test(type_of_test, train_id, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
+def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
@@ -246,7 +246,7 @@ def test(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datase
 		model = type_of_test()
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase='svc')
+		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
 		# model freezing
 		for layer in model.layers[:-2]:
@@ -262,7 +262,7 @@ def test(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datase
 		del X, y
 
 		# Test Time 
-		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, spatial_size = spatial_size, train_phase = False)
+		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
 
 
 		for X, y, non_binarized_y in test_loso_generator:
@@ -312,7 +312,7 @@ def test(type_of_test, train_id, feature_type = 'grayscale', db='Combined Datase
 		del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_g', feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_g', net = 'vgg16', feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False)
 
 
 print("RESULTS FOR VGG 16_g")

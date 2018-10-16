@@ -32,6 +32,7 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras import backend as K
 from keras.layers.core import Dense
 from keras.callbacks import EarlyStopping
+from keras.layers import GlobalAveragePooling2D
 
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
 from utilities import class_merging, read_image, create_generator_LOSO
@@ -134,7 +135,7 @@ def train_res50_imagenet(classes = 5):
 	resnet50 = Model(inputs = resnet50.input, outputs = dense_classifier)
 	plot_model(resnet50, to_file='resnet50.png', show_shapes=True)
 
-	for layer in resnet50.layers[:-2]:
+	for layer in resnet50.layers[:-14]:
 		layer.trainable = False	
 
 	return resnet50
@@ -146,7 +147,7 @@ def train_vgg16_imagenet(classes = 5):
 	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)	
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
 
-	for layer in vgg16.layers[:-3]:
+	for layer in vgg16.layers[:-7]:
 		layer.trainable = False
 
 	return vgg16
@@ -158,7 +159,7 @@ def train_inceptionv3_imagenet(classes = 5):
 	inceptionv3 = Model(inputs = inceptionv3.input, outputs = dense_classifier)	
 	plot_model(inceptionv3, to_file='inceptionv3.png', show_shapes=True)
 	
-	for layer in inceptionv3.layers[:-2]:
+	for layer in inceptionv3.layers[:-34]:
 		layer.trainable = False	
 
 	return inceptionv3

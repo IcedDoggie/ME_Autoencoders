@@ -27,7 +27,7 @@ import pydot, graphviz
 from keras.utils import np_utils, plot_model
 from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
-# from keras.applications.resnet50 import preprocess_input as res_preprocess_input
+from keras.applications.resnet50 import preprocess_input as res_preprocess_input
 
 
 
@@ -92,7 +92,7 @@ def read_image(root_dir, db, table):
 	return img_list, label_list
 
 
-def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='true'):
+def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, train_phase='true'):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
@@ -112,7 +112,11 @@ def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='tru
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
-					image = preprocess_input(image)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					else:
+						image = preprocess_input(image)
+
 					X += [image]
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)
@@ -128,7 +132,10 @@ def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='tru
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
-					image = preprocess_input(image)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					else:
+						image = preprocess_input(image)
 					X += [image]
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)
@@ -149,7 +156,10 @@ def create_generator_LOSO(x, y, classes, sub, spatial_size=224, train_phase='tru
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
-					image = preprocess_input(image)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					else:
+						image = preprocess_input(image)
 					X += [image]
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)

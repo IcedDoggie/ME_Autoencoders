@@ -92,6 +92,8 @@ def read_image(root_dir, db, table):
 	return img_list, label_list
 
 
+
+
 def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, train_phase='true'):
 	# Note: Test will be done separately from Training
 
@@ -438,6 +440,7 @@ def class_discretization(table, db='CASME_2'):
 			elif item[-1] == 'fear' or item[-1] == 'sadness':
 				rows_to_remove += [counter]		
 		table = np.delete(table, rows_to_remove, 0)	
+
 
 	elif db == 'SAMM':
 		for counter in range(len(table)):

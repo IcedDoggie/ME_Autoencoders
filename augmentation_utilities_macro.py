@@ -10,10 +10,9 @@ import pandas as pd
 import os, shutil
 import glob
 import matplotlib.pyplot as plt
-import h5py, tables
+import h5py
 from imblearn.over_sampling import SMOTE
 import math
-from resnet_builder.resnet import ResnetBuilder
 
 
 from sklearn.svm import SVC
@@ -37,6 +36,45 @@ import pydot, graphviz
 from keras.utils import np_utils, plot_model
 from vis.visualization import visualize_cam
 
+def read_image_emotion_class_based(root_db, casme2_db, casme2_table):
+
+	casme_namelist = []
+	casme_labels = []
+	casme_img_list = []
+
+	data_path = root_db + casme2_db + '/'
+	for root, folders, files in os.walk(data_path):
+		if root[-1] != '/':
+			temp_label_list = []
+			temp_img_list = []
+			casme_namelist += [files]
+
+			for counter in range(len(files)):
+				# read label
+				temp_label_list += [root[-1]]
+
+				# read img
+				img = cv2.imread(data_path + root[-1] + '/' + files[counter], 0)
+				temp_img_list += [img]
+
+			casme_labels += [temp_label_list]
+			casme_img_list += [temp_img_list]
+
+	# print(casme_namelist)
+	# print(casme_labels)
+	# print(casme_img_list)
+	# print(len(casme_namelist))
+	# print(len(casme_labels))
+	# print(len(casme_img_list))
+	return casme_namelist, casme_labels, casme_img_list
+
+def load_image(img_namelist):
+	img_list = []
+	for item in img_namelist:
+		img = cv2.imread(item, 0)
+		img_list += [img]
+
+	return img_list
 
 
 def duplicate_labels(imgs_list, labels_list):
@@ -57,23 +95,13 @@ def display_image_len(images, labels):
 	print("%i images, %i labels ck" %(len(images), len(labels)))
 
 
-def read_image(X_train, X_test):
-	img_train_list = []
-	counter = 0
-	for file in X_train:
-		img = cv2.imread(file)
-		img_train_list += [img]
-		counter += 1
-		print(str(counter) + " Done")
 
-	print(len(img_train_list))
-	return img_train_list
+def restructure_img(all_images, images_path, emo_labels, total_emotions, img_src_path):
 
-def restructure_img(all_images, images_path, emo_labels, total_emotions):
-	# print(total_emotions)
 	# create list of emotion folders
 	for emo in total_emotions:
-		emo_path = images_path + emo
+		emo_path = images_path + str(emo)
+
 		if os.path.exists(emo_path) == False: 
 			os.mkdir(emo_path)
 
@@ -83,63 +111,9 @@ def restructure_img(all_images, images_path, emo_labels, total_emotions):
 		img = all_images[counter]
 		emo = total_emotions[label]
 
-		# get extension of the image
-		temp_img = img.split('.', 1)[1]
-		if len(temp_img) > 4:
-			temp_img = temp_img.split('.', 2)[2]
-
-
-		target_path = images_path + emo + "/" + str(counter) + '.' + temp_img
-
+		img_str = img[len(img_src_path):].replace('/', '_')
+		target_path = images_path + str(emo) + "/" + img_str
 		shutil.copy(img, target_path)
-
-def restructure_sep_img(img_path, total_emotions, X_train, X_test, y_train_labels, y_test_labels):
-	
-	train_path = img_path + 'train/'
-	test_path = img_path + 'test/'
-
-	if os.path.exists(train_path) == False:
-		os.mkdir(train_path)
-	if os.path.exists(test_path) == False:
-		os.mkdir(test_path)
-
-	for emo in total_emotions:
-		emo_path = train_path + emo
-		if os.path.exists(emo_path) == False: 
-			os.mkdir(emo_path)
-		emo_path = test_path + emo
-		if os.path.exists(emo_path) == False: 
-			os.mkdir(emo_path)
-
-	for counter in range(len(X_train)):
-		label = y_train_labels[counter]
-		img = X_train[counter]
-		emo = total_emotions[label]
-
-		temp_img = img.split('.', 1)[1]
-		if len(temp_img) > 4:
-			temp_img = temp_img.split('.', 2)[2]
-
-		target_path = train_path + emo + "/" + str(counter) + '.' + temp_img
-
-		shutil.copy(img, target_path)
-
-	for counter in range(len(X_test)):
-		label = y_test_labels[counter]
-		img = X_test[counter]
-		emo = total_emotions[label]
-
-		temp_img = img.split('.', 1)[1]
-		if len(temp_img) > 4:
-			temp_img = temp_img.split('.', 2)[2]
-
-		target_path = test_path + emo + "/" + str(counter) + '.' + temp_img
-
-		shutil.copy(img, target_path)	
-
-
-
-
 
 
 def binarize_labels(labels_list):
@@ -185,75 +159,77 @@ def pivot_class(labels_list):
 
 	return list_pivot, biggest_pivot
 
-def over_sampling(img_list, labels_list, image_name_list=None):
-	# print(image_name_list)
-	sm = SMOTE(kind = 'regular', ratio = 'minority')
+def over_sampling(img_list, labels_list, target_path, filename_list, image_name_list=None):
+
+	sm = SMOTE(kind = 'regular', sampling_strategy = 'all', k_neighbors = 1)
 	X_resampled = []
 	y_resampled = []
 
 	img_list = np.asarray(img_list)
-	img_list = np.reshape(img_list, (img_list.shape[0], img_list.shape[1] * img_list.shape[2]))
-	
 	labels_list = np.asarray(labels_list)
-
-	# separate img_list based on classes, and find the biggest class
-	list_pivot, biggest_pivot = pivot_class(labels_list)
-	# print(biggest_pivot)
 
 	# create a loop to SMOTE biggest class to other classes (T0D0)
 	# visualization purpose
 	pca = PCA(n_components = 2)	
 	tsne = TSNE(n_components = 2, n_iter=250)
-	# print(labels_list)
 
-	biggest_img_list = img_list[ list_pivot[biggest_pivot] : list_pivot[biggest_pivot + 1] ]
-	biggest_labels_list = labels_list[ list_pivot[biggest_pivot] : list_pivot[biggest_pivot + 1] ]
-	# print(len(biggest_img_list))
 
-	loop_helper = len(list_pivot)
-	counter = 0
-	img_res_arr = []
-	labels_res_arr = []
-	while counter < (loop_helper - 2):
-	# for counter in range(len(list_pivot) - 2):
-		# print(counter)
-		if counter != biggest_pivot:
-			img_list_temp = img_list[ list_pivot[counter] : list_pivot[counter + 1] ]
-			# get subject identity
-			seg_image_name_list = image_name_list[ list_pivot[counter] : list_pivot[counter + 1] ]
-			# subject_identity = seg_image_name_list
-			# print(seg_image_name_list)
-			# print(len(seg_image_name_list))
-			
+	# find largest class and pivoting
+	biggest_class = []
+	list_pivot = [0]
+	pivot = 0
+	maximum_class = 0
+	maximum_compare = 0
+	for counter in range(len(img_list)):
+		if len(img_list[counter]) > maximum_compare:
+			maximum_class = counter
+			maximum_compare = len(img_list[counter])
 
-			labels_list_temp = labels_list[ list_pivot[counter] : list_pivot[counter + 1] ]
+	print("Maximum Class: " + str(maximum_class))
+	biggest_img_list = img_list[maximum_class]
+	biggest_labels_list = labels_list[maximum_class]
+	biggest_filename_list = filename_list[maximum_class]
 
-			img_list_temp = np.concatenate((img_list_temp, biggest_img_list), axis=0)
-			labels_list_temp = np.concatenate((labels_list_temp, biggest_labels_list), axis=0)
 
-			label_majority = biggest_labels_list[0]
-			label_minority = labels_list_temp[0]
+	# changed oversampling method
+	img_res_list = []
+	labels_res_list = []
+	for counter in range(len(img_list) - 1):
+		print("\n")
+		img_list_temp = img_list[counter]
+		labels_list_temp = labels_list[counter]
+		filename_list_temp = filename_list[counter]
 
-			img_res, labels_res = sm.fit_sample(img_list_temp, labels_list_temp)
-			
-			img_res_arr += [img_res]
-			labels_res_arr += [labels_res]
+		img_list_temp = np.concatenate((img_list_temp, biggest_img_list), axis=0)
+		img_list_temp = np.reshape(img_list_temp, (img_list_temp.shape[0], img_list_temp.shape[1] * img_list_temp.shape[2] * 1))
+		labels_list_temp = np.concatenate((labels_list_temp, biggest_labels_list), axis=0)
 
-			# dimensionality reduction for visualization
-			img_list_temp = normalize(img_list_temp)
-			img_res = normalize(img_res)
-			img_list_temp = pca.fit_transform(img_list_temp)
-			# print("one done")
-			img_res = pca.fit_transform(img_res)
+		img_res, labels_res = sm.fit_sample(img_list_temp, labels_list_temp)
 
-			# visualize_resampled_datapoints(img_list_temp, img_res, labels_list_temp, labels_res, counter, label_majority, label_minority)
+		img_res = img_res[len(labels_list_temp):]
+		labels_res = labels_res[len(labels_list_temp):]
 
-		
-		else:
-			loop_helper += 1
+		print("Oversampled")
+		# print(labels_res[len(labels_list_temp):])
+		print(img_res[len(labels_list_temp):].shape)
+		print(labels_res[len(labels_list_temp):].shape)
 
-		counter += 1
-	return img_res_arr, labels_res_arr, biggest_pivot
+		img_res_list += [img_res]
+		labels_res_list += [labels_res]
+
+		# Vis
+		label_majority = biggest_labels_list[0]
+		label_minority = labels_list_temp[0]
+		img_list_vis = normalize(img_list_temp)
+		img_res_vis = normalize(img_res)
+		img_list_vis = pca.fit_transform(img_list_vis)
+		img_res_vis = pca.fit_transform(img_res_vis)
+		visualize_resampled_datapoints(img_list_vis, img_res_vis, labels_list_temp, labels_res, counter, label_majority, label_minority)
+
+
+
+
+	return img_res_list, labels_res_list, biggest_filename_list, biggest_labels_list
 
 def test_over_sampling():
 	X, y = make_classification(n_classes=2, class_sep=2, weights=[0.1, 0.9],
@@ -295,8 +271,7 @@ def visualize_resampled_images(img_list, img_res, labels_list):
 		print("%i / %i Done" % (counter + 1, len(img_list)))
 
 def visualize_resampled_datapoints(img_vis, img_res_vis, labels_list, labels_res, counter, major, minor):
-	print(labels_list)
-	print(labels_res)
+
 	f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
 	ax2.axis("off")
 	ax4.axis("off")
@@ -313,20 +288,18 @@ def visualize_resampled_datapoints(img_vis, img_res_vis, labels_list, labels_res
 	plt.tight_layout()
 	filename = str(counter) + '.png'
 	plt.savefig(filename)
-	# plt.show()
+	plt.show()
 
 
 def plot_resampling(ax, X, y, title, major, minor):
-	# print(X[0,0])
-	# print(X[0,1])
+
 
 	c0 = ax.scatter(X[y == int(major), 0], X[y == int(major), 1], label="Class #0", alpha=0.5, c='black')
 	c1 = ax.scatter(X[y == int(minor), 0], X[y == int(minor), 1], label="Class #1", alpha=0.5, c='yellow')
 	
 	minimum = np.amin(X)
 	maximum = np.amax(X)
-	print(minimum)
-	print(maximum)
+
 
 	ax.set_title(title)
 	ax.spines['top'].set_visible(False)
@@ -340,81 +313,27 @@ def plot_resampling(ax, X, y, title, major, minor):
 
 	return c0, c1
 
+def export_oversampled_images(img_res, label_res, target_oversampled_path, total_emotions):
 
-def export_oversampled_images(img_res, label_res, img_path, biggest_pivot):
-	# print(len(img_res))
-	all_img_shape = (224, 224)
-	after_pivot_flag = 0
+	for emo in total_emotions:
+		emo_path = target_oversampled_path + str(emo) + '/'
+		if os.path.exists(emo_path) == False: 
+			os.mkdir(emo_path)
+
 	for counter in range(len(img_res)):
-		img_arr = img_res[counter]
-		label_arr = label_res[counter]
+		img_list = img_res[counter]
+		label_list = label_res[counter]
 
-		for subcounter in range(len(img_arr)):
-			img = img_arr[subcounter]
-			label = label_arr[subcounter]
+		for sub_counter in range(len(img_list)):
+			img = img_list[sub_counter].reshape((340, 280, 1))
+			label = label_list[sub_counter]
 
-			img_dim = int(math.sqrt(img.shape[0]))
-			img = img.reshape(img_dim, img_dim, 1)
-			# img = duplicate_channel(img, 2)
-			# plt.imshow(img, cmap= 'Greys')
-			# plt.show()
-			img = np.rollaxis(img, 2)
-			# print(img.shape)
+			img = np.uint8(img)
+			filename = target_oversampled_path + str(label) + '/' + str(counter) + '_' + str(sub_counter) + '.jpg'
+			cv2.imwrite(filename, img)
+			print(filename)
+			print(img.shape)
+			print(label) 
 
-
-			if after_pivot_flag == 1:
-				label = label + 2
-			elif counter == biggest_pivot:
-				label = label + 2
-				after_pivot_flag = 1
-			else:
-				counter_name = counter + 1			
-
-			if label == 0:
-				label = 'surprise'
-			elif label == 1:
-				label = 'disgust'
-			elif label == 2:
-				label = 'happiness'
-			elif label == 3:
-				label = 'fear'
-			elif label == 4:
-				label = 'sadness'
-			elif label == 5:
-				label = 'anger'			
-
-
-			out_path = img_path + label + '/' + str(counter) + "_" + str(subcounter) + '.hdf5'
-			hdf5_file = h5py.File(out_path, mode='w')
-			hdf5_file.create_dataset("all_img", all_img_shape)
-			hdf5_file["all_img"][:] = img
-		
-		print("%i / %i Done" % (counter, len(img_res)))
-			# print(img.shape)
-			# print(label)
-
-def convert_h5_to_image(h5_list):
-	for counter in range(len(h5_list)):
-		h5_temp = h5_list[counter]
-		# specific situation for oversampled data
-		if '_' in h5_temp[-11:-1]:
-			hdf5_file = tables.open_file(h5_temp, mode='r')
-			img = hdf5_file.root.all_img[:]
-
-
-		else: 
-			hdf5_file  = tables.open_file(h5_temp, mode='r')
-			img = hdf5_file.root.all_img[0]		
-
-
-		img = img.reshape(img.shape[0], img.shape[1], 1)	
-		img = np.array(img, dtype=np.uint8)			
-		out_path = h5_temp.replace('hdf5', 'jpg')
-		print(out_path)
-
-
-		cv2.imwrite(out_path, img)
-		os.remove(h5_temp)
-		hdf5_file.close()
-
+		print("%i / %i Done" % (counter + 1, len(img_res)))
 

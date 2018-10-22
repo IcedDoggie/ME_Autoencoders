@@ -130,40 +130,98 @@ def test_inceptionv3_finetuned(weights_name = 'imagenet'):
 
 def train_res50_imagenet(classes = 5):
 	resnet50 = ResNet50(weights = 'imagenet')
+
+	# load macro
+	last_layer = resnet50.layers[-2].output
+	dense_classifier = Dense(6, activation = 'softmax')(last_layer)
+	resnet50 = Model(inputs = resnet50.input, outputs = dense_classifier)		
+	resnet50.load_weights('res_micro_grayscale_res50_retrain.h5')	
+
 	last_layer = resnet50.layers[-2].output
 	dense_classifier = Dense(classes, activation = 'softmax')(last_layer)
 	resnet50 = Model(inputs = resnet50.input, outputs = dense_classifier)
 	plot_model(resnet50, to_file='resnet50.png', show_shapes=True)
 
-	for layer in resnet50.layers[:-14]:
+	# for layer in resnet50.layers:
+	# 	layer.trainable = True
+
+	# for 2nd last block
+	for layer in resnet50.layers[:-25]:
 		layer.trainable = False	
+
+	# # for 3rd last block
+	# for layer in resnet50.layers[:-37]:
+	# 	layer.trainable = False		
+
+	# for layer in resnet50.layers[:-14]:
+	# 	layer.trainable = False	
 
 	return resnet50
 
 def train_vgg16_imagenet(classes = 5):
 	vgg16 = VGG16(weights = 'imagenet')
+
+	# # load macro
+	# last_layer = vgg16.layers[-2].output
+	# dense_classifier = Dense(6, activation = 'softmax')(last_layer)
+	# vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)		
+	# vgg16.load_weights('res_micro_grayscale_vgg16_retrain.h5')	
+
+	# LFW weights
+	last_layer = vgg16.layers[-2].output
+	dense_classifier = Dense(2622, activation = 'softmax')(last_layer)
+	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)			
+	vgg16.load_weights('VGG_Face_Deep_16.h5')
+
 	last_layer = vgg16.layers[-2].output
 	dense_classifier = Dense(classes, activation = 'softmax')(last_layer)
 	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)	
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
+		
+	# for layer in vgg16.layers:
+	# 	layer.trainable = True
 
-	for layer in vgg16.layers[:-7]:
+	# train last 2 block
+	for layer in vgg16.layers[:-8]:
 		layer.trainable = False
+
+	# # train last 3 block
+	# for layer in vgg16.layers[:-9]:
+	# 	layer.trainable = False
+
+	# # train last block
+	# for layer in vgg16.layers[:-7]:
+	# 	layer.trainable = False	
 
 	return vgg16
 
 def train_inceptionv3_imagenet(classes = 5):
 	inceptionv3 = InceptionV3(weights = 'imagenet')
+
+	# load macro
+	last_layer = inceptionv3.layers[-2].output
+	dense_classifier = Dense(6, activation = 'softmax')(last_layer)
+	inceptionv3 = Model(inputs = inceptionv3.input, outputs = dense_classifier)		
+	inceptionv3.load_weights('res_micro_grayscale_incepv3_retrain.h5')
+
 	last_layer = inceptionv3.layers[-2].output
 	dense_classifier = Dense(classes, activation = 'softmax')(last_layer)
 	inceptionv3 = Model(inputs = inceptionv3.input, outputs = dense_classifier)	
 	plot_model(inceptionv3, to_file='inceptionv3.png', show_shapes=True)
+
+	# for layer in inceptionv3.layers:
+	# 	layer.trainable = True
 	
-	for layer in inceptionv3.layers[:-34]:
-		layer.trainable = False	
+	# 2nd last incep block
+	for layer in inceptionv3.layers[:-85]:
+		layer.trainable = False
 
-	return inceptionv3
+	# # 3rd last incep block
+	# for layer in inceptionv3.layers[:-117]:
+	# 	layer.trainable = False
 
+	# for layer in inceptionv3.layers[:-34]:
+	# 	layer.trainable = False	
 def train_xception_imagenet():
 	xception = Xception(weights = 'imagenet')
 	last_layer = xception.layers[-2].output

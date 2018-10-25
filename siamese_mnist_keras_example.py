@@ -27,6 +27,7 @@ from keras.layers.core import Flatten, Dense, Dropout
 from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSampling2D
 from keras.layers import BatchNormalization, Input
+from keras.applications.vgg16 import VGG16
 
 num_classes = 10
 epochs = 20
@@ -158,6 +159,7 @@ digit_indices = [np.where(y_test == i)[0] for i in range(num_classes)]
 te_pairs, te_y = create_pairs(x_test, digit_indices)
 
 # network definition
+# base_network = VGG16(input_shape)
 base_network = create_base_network(input_shape)
 input_a = Input(shape=input_shape)
 input_b = Input(shape=input_shape)

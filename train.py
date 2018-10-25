@@ -29,7 +29,7 @@ from utilities import class_merging, read_image, create_generator_LOSO
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
-
+from networks import train_vgg16_imagenet, train_res50_imagenet, train_inceptionv3_imagenet
 
 
 def train():

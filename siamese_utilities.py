@@ -256,4 +256,4 @@ def run_image_averaging(feature_type = 'grayscale'):
 	
 
 # run_over_sampling(feature_type='grayscale')
-# run_image_averaging(feature_type='grayscale')
+run_image_averaging(feature_type='grayscale')

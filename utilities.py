@@ -79,6 +79,7 @@ def read_image(root_dir, db, table):
 			
 
 		folder_path = data_path + subj + "/" + vid + "/"
+		# this part can handle dynamic label assignment based on number of images per subject
 		files = os.listdir(folder_path)
 		for file in files:
 			temp = folder_path + file
@@ -423,7 +424,7 @@ def class_discretization(table, db='CASME_2'):
 	rows_to_remove = []
 	table = table[0]
 
-	if db == 'CASME_2':
+	if 'CASME' in db:
 		for counter in range(len(table)):
 			item = table[counter]
 			item[-1] = item[-1].lower()
@@ -442,7 +443,7 @@ def class_discretization(table, db='CASME_2'):
 		table = np.delete(table, rows_to_remove, 0)	
 
 
-	elif db == 'SAMM':
+	elif 'SAMM' in db:
 		for counter in range(len(table)):
 			item = table[counter]
 			item[-1] = item[-1].lower()

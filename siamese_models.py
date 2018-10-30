@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import theano
 
 from keras.datasets import mnist
 from keras.models import Model
@@ -24,7 +25,7 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras import backend as K
 from keras.layers.core import Dense
 from keras.callbacks import EarlyStopping
-from keras.layers import GlobalAveragePooling2D
+from keras.layers import GlobalAveragePooling2D, Concatenate
 
 from keras.losses import *
 
@@ -35,6 +36,23 @@ def euclidean_distance(vects):
 	sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
 	return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
+def concat_feature(vects):
+	x1, x2 = vects
+	# x1 = K.reshape(x1, (1, 4096))
+	# x2 = K.reshape(x2, (1, 4096))
+	print(K.int_shape(vects))
+	print(K.int_shape(x1))
+	print(K.int_shape(x2))
+	concat_feat = K.concatenate([x1, x2], axis=-1)
+	print(K.int_shape(concat_feat))
+
+	return concat_feat
+
+def deconcat_feature(vects):
+
+	fx, fx_hat = K.eval(vects)
+
+	return fx, fx_hat
 
 def eucl_dist_output_shape(shapes):
 	shape1, shape2 = shapes
@@ -49,27 +67,23 @@ def contrastive_loss(y_true, y_pred):
 	margin_square = K.square(K.maximum(margin - y_pred, 0))
 	return K.mean(y_true * sqaure_pred + (1 - y_true) * margin_square)
 	
-# Implement Dual Loss
-def siamese_dual_loss(y_true, y_pred):
-	# Classification Loss + Regressional Loss
-	# print(y_true.shape)
-	# print(y_pred.shape)
-	# print(y_pred[:, 0])
-	# print(y_pred[:, 1])
-	# print(y_pred[:, 2])
-	# print(y_pred[:, 3])
 
 
-	# Classification
-	classification_loss = categorical_crossentropy(y_true, y_pred)
-
-	# Regressional
-	regresssional_loss = mean_squared_error(y_true, y_pred)
-
-	dual_loss = classification_loss + regresssional_loss
+def feature_distance_loss(y_true, vects):
 
 
-	return dual_loss
+	fx = vects[:, 0:4096]
+	fx_hat = vects[:, 4096: 8192]
+
+	# sum_square = (1 / (2*K.count_params(fx))) * (K.sum(K.square(fx - fx_hat), axis=1, keepdims=True))
+	feature_loss = K.mean(K.square(fx_hat - fx), axis=-1)
+
+	# K.eval(feature_loss)
+	return feature_loss
+
+# def feature_output_shape(shapes):
+# 	shape1, shape2 = shapes
+# 	return (shape1, 2)
 
 # TODO Implement Siamese Pairs
 def create_siamese_pairs(X_ori, X_aug, y_ori, y_aug):
@@ -120,6 +134,7 @@ def siamese_vgg16_imagenet(classes = 5):
 	vgg16 = Model(inputs = vgg16.input, outputs = last_layer)
 	auxiliary_output = Dense(classes, activation = 'softmax')
 
+
 	# for layer in inceptionv3.layers:
 	# 	layer.trainable = True
 	
@@ -138,21 +153,23 @@ def siamese_vgg16_imagenet(classes = 5):
 	input_a = Input(shape=(3, 224, 224))
 	input_b = Input(shape=(3, 224, 224))
 	feature_a = vgg16(input_a)
+	feature_b = vgg16(input_b)	
+
 	softmax_a = auxiliary_output(feature_a)
 
-
-	feature_b = vgg16(input_b)
-	
+	# concat feature a and b
+	features = Concatenate(axis=-1)([feature_a, feature_b])
 
 
 	distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_a, feature_b])
 
 
 	print("Done")	
-	vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, distance])	
+	# vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, distance])	
+	vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, features])	
+
 	plot_model(vgg16, to_file='Siamese_vgg16.png', show_shapes=True)
 	print("MileStone #2")
-		
 		
 
 	return vgg16

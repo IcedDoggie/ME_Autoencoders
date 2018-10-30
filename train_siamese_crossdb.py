@@ -30,7 +30,7 @@ from utilities import class_merging, read_image, create_generator_LOSO, class_di
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from siamese_models import siamese_vgg16_imagenet
-from siamese_models import siamese_dual_loss, create_siamese_pairs, feature_distance_loss
+from siamese_models import siamese_dual_loss, create_siamese_pairs
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 
 # TODO
@@ -103,7 +103,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		# model initialization for LOSO 
 		model = siamese_vgg16_imagenet()
 		# Losses will be summed up
-		model.compile(loss=['categorical_crossentropy', feature_distance_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])
+		model.compile(loss=['categorical_crossentropy', 'mean_squared_error'], optimizer=adam, metrics=[metrics.categorical_accuracy])
 		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
@@ -296,5 +296,4 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("uar: " + str(uar))
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
-			
 train(siamese_vgg16_imagenet, train_id='test_siam', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)

@@ -30,8 +30,9 @@ from utilities import class_merging, read_image, create_generator_LOSO, class_di
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from siamese_models import siamese_vgg16_imagenet
-from siamese_models import siamese_dual_loss, create_siamese_pairs, feature_distance_loss
+from siamese_models import create_siamese_pairs, feature_distance_loss
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
+from networks import train_vgg16_imagenet, train_res50_imagenet, train_inceptionv3_imagenet
 
 # TODO
 # function to create pairs ( think a bit first), true pair, false pair. NEED TO CREATE PAIRS
@@ -41,9 +42,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
 	# general variables and path
-	working_dir = '/home/ice/Documents/ME_Autoencoders/'
-	root_dir = '/media/ice/OS/Datasets/' + db + '/'
-	weights_path = '/media/ice/OS/Datasets/'
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -91,7 +92,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
 	batch_size = 30
-	epochs = 1
+	epochs = 50
 	total_samples = 0
 
 	if os.path.exists(weights_path) == False:
@@ -103,7 +104,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		# model initialization for LOSO 
 		model = siamese_vgg16_imagenet()
 		# Losses will be summed up
-		model.compile(loss=['categorical_crossentropy', feature_distance_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])
+		model.compile(loss=['categorical_crossentropy', feature_distance_loss], optimizer=sgd, metrics=[metrics.categorical_accuracy])
 		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
@@ -118,6 +119,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 		# model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], ], batch_size=batch_size, epochs=epochs, callbacks=[stopping], shuffle=False)
 		plot_model(model, show_shapes=True, to_file='vgg16_out_of_siamese.png')
+		# model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False)
 		model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False)
 
 		weights_name = weights_path + str(sub) + '.h5'
@@ -172,8 +174,8 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 			print("war: " + str(war))
 			print("uar: " + str(uar))
 			print("Macro_f1: " + str(macro_f1))
-			print("Weighted_f1: " + str(weighted_f1))	
-			
+			print("Weighted_f1: " + str(weighted_f1))
+
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
 
 	sys.setrecursionlimit(10000)
@@ -296,5 +298,6 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("uar: " + str(uar))
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
-			
-train(siamese_vgg16_imagenet, train_id='test_siam', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)
+ 
+train(siamese_vgg16_imagenet, train_id='siamese_feature_loss', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)
+# test(siamese_vgg16_imagenet, train_id='siamese_micro_microaug', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)

@@ -2,3 +2,6 @@
 *.png
 *.jpg
 *.dat
+ImageModels-master/
+keras-oneshot/
+Siamese-Networks-for-One-Shot-Learning/

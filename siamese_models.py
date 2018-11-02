@@ -71,15 +71,29 @@ def contrastive_loss(y_true, y_pred):
 
 def feature_distance_loss(y_true, vects):
 
-
-	fx = vects[:, 0:4096]
-	fx_hat = vects[:, 4096: 8192]
+	shape_i, shape_j = K.int_shape(vects)
+	subshape = int(shape_j/2)
+	fx = vects[:, 0:subshape]
+	fx_hat = vects[:, subshape: shape_j]
 
 	# sum_square = (1 / (2*K.count_params(fx))) * (K.sum(K.square(fx - fx_hat), axis=1, keepdims=True))
 	feature_loss = K.mean(K.square(fx_hat - fx), axis=-1)
 
 	# K.eval(feature_loss)
 	return feature_loss
+
+def feature_distance_cross_db_loss(y_true, vects):
+
+	shape_i, shape_j = K.int_shape(vects)
+	subshape = int(shape_j/3)
+	fx = vects[:, 0:subshape]
+	fx_hat = vects[:, subshape: shape_j]
+
+	# sum_square = (1 / (2*K.count_params(fx))) * (K.sum(K.square(fx - fx_hat), axis=1, keepdims=True))
+	feature_loss = K.mean(K.square(fx_hat - fx), axis=-1)
+
+	# K.eval(feature_loss)
+	return feature_loss	
 
 # def feature_output_shape(shapes):
 # 	shape1, shape2 = shapes
@@ -113,6 +127,41 @@ def create_siamese_pairs(X_ori, X_aug, y_ori, y_aug):
 	print(labels.shape)
 	return pairs, labels
 
+def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
+	pairs = []
+	labels = []
+
+	# emotion based sampling
+
+	for img_counter in range(len(X_ori)):
+		curr_ori_img = X_ori[img_counter]
+		curr_ori_label = y_ori[img_counter]
+		compare_param_ori = np.argmax(curr_ori_label)
+
+		for sub_counter in range(len(X_aug)):
+			curr_aug_img = X_aug[sub_counter]
+			curr_aug_label = y_aug[sub_counter]
+			compare_param_aug = np.argmax(curr_aug_label)
+
+			if compare_param_ori == compare_param_aug:
+				pairs += [[curr_ori_img, curr_aug_img]]
+				labels += [[curr_ori_label, curr_aug_label]]
+				# print("matched!")
+				# print(curr_aug_label)
+				# print(curr_ori_label)
+	pairs = np.asarray(pairs)
+	labels = np.asarray(labels)
+
+	print("True Pairs Created ")
+
+	print(pairs.shape)
+	print(labels.shape)
+	return pairs, labels	
+		# print(curr_ori_label)
+
+	# print(y_ori)
+	# print(y_aug)
+
 def siamese_base_network(classes=5):
 	input_layer = Input(shape = (3, 224, 224))
 	x = Conv2D(64, (5, 5), activation = 'relu')(input_layer)
@@ -138,15 +187,16 @@ def siamese_vgg16_imagenet(classes = 5):
 	# for layer in inceptionv3.layers:
 	# 	layer.trainable = True
 	
-	# # 2nd last incep block
-	# for layer in inceptionv3.layers[:-85]:
+	# # train last 2 block
+	# for layer in vgg16.layers[:-8]:
 	# 	layer.trainable = False
 
-	# # 3rd last incep block
-	# for layer in inceptionv3.layers[:-117]:
+	# # train last 3 block
+	# for layer in vgg16.layers[:-9]:
 	# 	layer.trainable = False
 
-	# for layer in inceptionv3.layers[:-34]:
+	# # train last block
+	# for layer in vgg16.layers[:-7]:
 	# 	layer.trainable = False	
 
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
@@ -173,3 +223,101 @@ def siamese_vgg16_imagenet(classes = 5):
 		
 
 	return vgg16
+
+def siamese_res50_network(classes = 5):
+	res50 = ResNet50(weights = 'imagenet')
+	last_layer = res50.layers[-2].output
+	res50 = Model(inputs = res50.input, outputs = last_layer)
+	auxiliary_output = Dense(classes, activation = 'softmax')
+
+
+	# for layer in res50.layers:
+	# 	layer.trainable = True
+
+	# # for 2nd last block
+	# for layer in res50.layers[:-25]:
+	# 	layer.trainable = False	
+
+	# for 3rd last block
+	for layer in res50.layers[:-37]:
+		layer.trainable = False		
+
+	# for layer in res50.layers[:-14]:
+	# 	layer.trainable = False	
+
+	plot_model(res50, to_file='res50.png', show_shapes=True)
+	input_a = Input(shape=(3, 224, 224))
+	input_b = Input(shape=(3, 224, 224))
+	feature_a = res50(input_a)
+	feature_b = res50(input_b)	
+
+	softmax_a = auxiliary_output(feature_a)
+
+	# concat feature a and b
+	features = Concatenate(axis=-1)([feature_a, feature_b])
+
+
+	distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_a, feature_b])
+
+
+	print("Done")	
+	# vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, distance])	
+	res50 = Model(inputs = [input_a, input_b], outputs = [softmax_a, features])	
+
+	plot_model(res50, to_file='Siamese_res50.png', show_shapes=True)
+	print("MileStone #2")
+		
+
+	return res50	
+
+def siamese_vgg16_crossdb_imagenet(classes = 3):
+	vgg16 = VGG16(weights = 'imagenet')
+	last_layer = vgg16.layers[-2].output
+	vgg16 = Model(inputs = vgg16.input, outputs = last_layer)
+	auxiliary_output = Dense(classes, activation = 'softmax')
+	auxiliary_output_2 = Dense(classes, activation = 'softmax')
+
+
+	# for layer in inceptionv3.layers:
+	# 	layer.trainable = True
+	
+	# # train last 2 block
+	# for layer in vgg16.layers[:-8]:
+	# 	layer.trainable = False
+
+	# # train last 3 block
+	# for layer in vgg16.layers[:-9]:
+	# 	layer.trainable = False
+
+	# train last block
+	for layer in vgg16.layers[:-7]:
+		layer.trainable = False	
+
+	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
+	input_a = Input(shape=(3, 224, 224))
+	input_b = Input(shape=(3, 224, 224))
+	# input_c = Input(shape=(3, 224, 224))
+	feature_a = vgg16(input_a)
+	feature_b = vgg16(input_b)	
+	# feature_c = vgg16(input_c)
+
+	softmax_a = auxiliary_output(feature_a)
+	softmax_b = auxiliary_output_2(feature_b)
+	# softmax_c = auxiliary_output(feature_c)
+
+	# concat feature a and b
+	features = Concatenate(axis=-1)([feature_a, feature_b])
+
+
+	# distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_a, feature_b])
+
+
+	print("Done")	
+	# vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, distance])	
+	vgg16 = Model(inputs = [input_a, input_b], outputs = [softmax_a, softmax_b, features])	
+
+	plot_model(vgg16, to_file='Siamese_vgg16.png', show_shapes=True)
+	print("MileStone #2")
+		
+
+	return vgg16	

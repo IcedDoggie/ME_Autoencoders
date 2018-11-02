@@ -230,3 +230,40 @@ def train_xception_imagenet():
 	plot_model(xception, to_file='xception.png', show_shapes=True)
 
 	return xception
+
+def train_vgg16_temporal_imagenet(classes = 5):
+	vgg16 = VGG16(weights = 'imagenet')
+
+	# # load macro
+	# last_layer = vgg16.layers[-2].output
+	# dense_classifier = Dense(6, activation = 'softmax')(last_layer)
+	# vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)		
+	# vgg16.load_weights('res_micro_grayscale_vgg16_retrain.h5')	
+
+	# LFW weights
+	last_layer = vgg16.layers[-2].output
+	dense_classifier = Dense(2622, activation = 'softmax')(last_layer)
+	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)			
+	vgg16.load_weights('VGG_Face_Deep_16.h5')
+
+	last_layer = vgg16.layers[-2].output
+	dense_classifier = Dense(classes, activation = 'softmax')(last_layer)
+	vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)	
+	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
+		
+	# for layer in vgg16.layers:
+	# 	layer.trainable = True
+
+	# train last 2 block
+	for layer in vgg16.layers[:-8]:
+		layer.trainable = False
+
+	# # train last 3 block
+	# for layer in vgg16.layers[:-9]:
+	# 	layer.trainable = False
+
+	# # train last block
+	# for layer in vgg16.layers[:-7]:
+	# 	layer.trainable = False	
+
+	return vgg16

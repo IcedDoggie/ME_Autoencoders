@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import os, shutil
 import cv2
+import h5py
+import scipy.io
+from PIL import Image
 
 # image_path = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_ORI/'
 # label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_label_Ver_2.xls'
@@ -10,16 +13,12 @@ import cv2
 # objective_label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2-ObjectiveClasses.xlsx'
 
 
-image_path = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_ORI/'
-label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_label_Ver_2.xls'
-new_dir_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/'
-train_path = '/media/ice/OS/Datasets/CASME2_APEX/Train/'
-objective_label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2-ObjectiveClasses.xlsx'
+# image_path = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_ORI/'
+# label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2_label_Ver_2.xls'
+# new_dir_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/'
+# train_path = '/media/ice/OS/Datasets/CASME2_APEX/Train/'
+# objective_label_file = '/media/ice/OS/Datasets/CASME2_APEX/CASME2-ObjectiveClasses.xlsx'
 
-# image_path = '/media/ice/OS/Datasets/SAMM/SAMM/'
-# label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
-# new_dir_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex/SAMM_TIM10/SAMM_TIM10/'
-# objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
 
 
 def read_label(label_file):
@@ -131,8 +130,8 @@ def create_dir(new_dir_path, image_path, keyword='sub', position_of_keyword=-5, 
 		if root[position_of_keyword:position_of_keyword + len(keyword)] == keyword:
 			# print(root)
 			temp_root = root.replace(original_str, new_str)
-			
-			if not os.path.isdir(temp_root):
+			# print(temp_root)
+			if os.path.exists(temp_root) == False:
 				os.mkdir(temp_root)
 
 
@@ -142,7 +141,7 @@ def create_dir(new_dir_path, image_path, keyword='sub', position_of_keyword=-5, 
 			# print(root)			
 			temp_root = root.replace(original_str, new_str)
 			# print(temp_root)			
-			if not os.path.isdir(temp_root):
+			if os.path.exists(temp_root) == False:
 				os.mkdir(temp_root)
 
 
@@ -220,6 +219,7 @@ def read_label_onset_apex(label_file):
 	filtered_table = table[['Subject', 'Filename', 'OnsetFrame', 'ApexFrame', 'Estimated Emotion']]
 	return filtered_table
 
+
 def get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_flag=True, add_zero_flag = False, samm_flag=False):
 	apex_images_list = []
 	np_apex = filtered_table[['ApexFrame']].as_matrix()
@@ -274,8 +274,11 @@ def get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_
 			for files in os.walk(vid_path):
 				files = files[2]
 				for items in files:
+
 					if temp_apex in items:
 						temp_apex = items[:-4]
+					if temp_onset in items:
+						temp_onset = items[:-4]
 						# temp_onset = items
 
 
@@ -295,8 +298,105 @@ def rename_files_for_flow_compute(image_path):
 				ori_name = root + '/' + str(item + 1) + '.jpg'
 				os.rename(ori_name, filename)
 
+def move_smic(path, out):
+	img_list = []
+
+	# create subj
+	for root, folders, files in os.walk(path):
+		# print(root)
+		if len(root) < len(path) + 4 and root[-1] != '/': 
+			# print(root)
+			subj_str = root.replace(path, '')
+			# check int for more than 9
+			int_subj = int(subj_str[1:])
+			if int_subj < 10:
+				subj_str = 's0' + str(int_subj) 
+
+			if os.path.exists(out+subj_str) == False:
+				os.mkdir(out + subj_str)
+
+	# create vid
+	for root, folders, files in os.walk(path):
+		if '/micro/' in root:
+			last_eight = root[-8:]
+			if last_eight == 'surprise' or last_eight == 'negative' or last_eight == 'positive':
+				last_eight = last_eight
+			else:
+				# store img list
+				temp_img_list = []
+				for file in files:
+					file_path = root + '/' + file
+					temp_img_list += [file_path]
+				img_list += [temp_img_list]
+
+				root = root.replace('negative/', '')
+				root = root.replace('positive/', '')
+				root = root.replace('surprise/', '')
+
+				idx = root.find('/micro/')
+				root = root[idx + 7:]
+				sub = root.find('_')
+				int_subj = int((root[:sub])[1:])
+
+				if int_subj < 10:
+					subj_str = 's0' + str(int_subj)
+
+				else:
+					subj_str = root[:sub]
+				vid_str = subj_str + root[sub:]
+				out_path = out + subj_str + '/' + vid_str + '/'
+
+				# print(out_path)
+				if os.path.exists(out_path) == False:
+					os.mkdir(out_path)
+
+	print(len(img_list))
+	print(img_list)
+	return img_list
+
+def smic_apexing(path, out, ori_path, ori_img_list):
+	# read apex file
+	all_data = pd.read_table(path, header=None, names = ['ID', 'Total Frames', 'Apex Frame'], delimiter=' ')
+	id_col = all_data[['ID']].as_matrix()
+	tot_frames_col = all_data[['Total Frames']].as_matrix()
+	apex_frame_col = all_data[['Apex Frame']].as_matrix()
+
+	for counter in range(len(id_col)):
+		id_name = (id_col[counter])[0]
+		apex_frame = int((apex_frame_col[counter])[0])
+		temp_ori_img = ori_img_list[counter]
+		# print(apex_frame)
+		# print(len(temp_ori_img))
+		ori_img = temp_ori_img[apex_frame]
+		onset_img = temp_ori_img[0]
+
+
+
+
+		apex_output_path = out + id_name + '/' + '1.bmp'
+		onset_output_path = out + id_name + '/' + '0.bmp'
+		# print(ori_img)
+		# print(apex_output_path)
+		shutil.copy(ori_img, apex_output_path)	
+		shutil.copy(onset_img, onset_output_path)
+
+		# convert bmp to png
+		img = cv2.imread(apex_output_path)
+		cv2.imwrite(out + id_name + '/' + '1.png', img)
+		img = cv2.imread(onset_output_path)
+		cv2.imwrite(out + id_name + '/' + '0.png', img)
+
+		# remove bmp
+		os.remove(apex_output_path)
+		os.remove(onset_output_path)
+
+
 				
 # def copy_onset_apex_images():
+image_path = '/media/ice/OS/Datasets/SAMM/SAMM/'
+label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
+new_dir_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/'
+objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
 
 
 
@@ -311,13 +411,32 @@ def rename_files_for_flow_compute(image_path):
 # create_dir_samm(new_dir_path, image_path, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex/SAMM_TIM10/SAMM_TIM10/')
 # copy_apex_images(image_path, new_dir_path, image_list, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex/SAMM_TIM10/SAMM_TIM10/')
 
-# Onset and Apex
-filtered_table = read_label_onset_apex(label_file)
-image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_flag=True, add_zero_flag = False, samm_flag=False)
-create_dir(new_dir_path, image_path, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
-copy_apex_images(image_path, new_dir_path, image_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
-copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
+# # Onset and Apex (CASME)
+# filtered_table = read_label_onset_apex(label_file)
+# image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_flag=True, add_zero_flag = False, samm_flag=False)
+# create_dir(new_dir_path, image_path, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
+
+# # Onset and Apex (SAMM)
+# # /media/ice/OS/Datasets/SAMM/SAMM
+# filtered_table = read_label_onset_apex(label_file)
+# image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=False, add_img_flag=False, add_zero_flag = False, samm_flag=True)
+# create_dir_samm(new_dir_path, image_path, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_list, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+
 
 # rename the files to pass to tvl1flow computation, making life easier
 # path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_TIM10/CASME2_TIM10/'
 # rename_files_for_flow_compute(path)
+
+# Onset and Apex (SMIC)
+path = '/media/ice/OS/Datasets/SMIC/SMIC/HS/'
+out_path = '/media/ice/OS/Datasets/SMIC_HS/'
+apex_mat = '/home/ice/Documents/ME_Autoencoders/maxROI_Frame.mat'
+vid_mat = '/home/ice/Documents/ME_Autoencoders/vid_list.mat'
+smic_id_file = '/media/ice/OS/Datasets/SMIC/SMIC_Apex_ID'
+ori_img_list = move_smic(path, out_path)
+smic_apexing(smic_id_file, out_path, path, ori_img_list)
+

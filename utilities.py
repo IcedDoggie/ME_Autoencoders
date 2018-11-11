@@ -79,7 +79,6 @@ def read_image(root_dir, db, table):
 			
 
 		folder_path = data_path + subj + "/" + vid + "/"
-		# this part can handle dynamic label assignment based on number of images per subject
 		files = os.listdir(folder_path)
 		for file in files:
 			temp = folder_path + file
@@ -92,13 +91,54 @@ def read_image(root_dir, db, table):
 
 	return img_list, label_list
 
-
-
-
-def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, train_phase='true'):
+def create_generator_nonLOSO(x, y, classes, spatial_size = 224, train_phase=True):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
+	
+	# Read and Yield
+	X = []
+	Y = []
+	non_binarized_Y = []
+
+	for subj_counter in range(len(x)):
+		# train case
+		if train_phase:
+
+			for each_file in x[subj_counter]:
+				image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+				image = img.img_to_array(image)
+				image = np.expand_dims(image, axis=0)
+				image = preprocess_input(image) # vgg way
+				X += [image]
+
+			temp_y = np_utils.to_categorical(y[subj_counter], classes)
+			for each_label in temp_y:
+				# Y.append(each_label)
+				Y += [each_label]
+
+			for item in y[subj_counter]:
+				non_binarized_Y += [item]					
+
+
+	X = np.vstack(X)
+	Y = np.vstack(Y)
+
+
+	if train_phase:
+		# print(non_binarized_Y)
+		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+
+		yield X, Y, non_binarized_Y
+	else:
+		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		yield X, Y, non_binarized_Y
+
+def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true'):
+	# Note: Test will be done separately from Training
+
+	# Filter out only Training Images and Labels
+
 
 	
 	# Read and Yield
@@ -119,7 +159,6 @@ def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, tra
 						image = res_preprocess_input(image)
 					else:
 						image = preprocess_input(image)
-
 					X += [image]
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)
@@ -142,6 +181,7 @@ def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, tra
 					X += [image]
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				# non_binarized_Y += [y[subj_counter]]
 
 				for item in y[subj_counter]:
 					non_binarized_Y += [item]
@@ -149,13 +189,13 @@ def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, tra
 				for each_label in temp_y:
 					# Y.append(each_label)
 					Y += [each_label]			
+					# non_binarized_Y += [y[subj_counter]]	
 
-				
 		# test case
 		else:
 			if subj_counter == sub:
 				for each_file in x[subj_counter]:
-
+					# print(each_file)
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
@@ -171,63 +211,60 @@ def create_generator_LOSO(x, y, classes, sub, net = 'vgg', spatial_size=224, tra
 					Y += [each_label]			
 					non_binarized_Y += [y[subj_counter]]
 
-
 	X = np.vstack(X)
 	Y = np.vstack(Y)
-
+	# print("Antoas")
 
 	if train_phase == 'true':
 		yield X, Y
 	elif train_phase == 'svc':
-		# non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
-		yield X, Y, non_binarized_Y
-	else:
 		# non_binarized_Y = non_binarized_Y[0]
-		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		# print(non_binarized_Y)
+		# print(len(non_binarized_Y))
+		# non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		# print("svc")
+		# print(non_binarized_Y)
 		yield X, Y, non_binarized_Y
-
-
-
-
-def create_generator_nonLOSO(x, y, classes, train_phase=True):
-	# Note: Test will be done separately from Training
-
-	# Filter out only Training Images and Labels
-	
-	# Read and Yield
-	X = []
-	Y = []
-	non_binarized_Y = []
-
-	for subj_counter in range(len(x)):
-		# train case
-		if train_phase:
-
-			for each_file in x[subj_counter]:
-				image = img.load_img(each_file, target_size=(224, 224))
-				image = img.img_to_array(image)
-				image = np.expand_dims(image, axis=0)
-				image = preprocess_input(image)
-				X += [image]
-
-			temp_y = np_utils.to_categorical(y[subj_counter], classes)
-			for each_label in temp_y:
-				# Y.append(each_label)
-				Y += [each_label]
-				non_binarized_Y += [y[subj_counter]]
-					
-
-
-	X = np.vstack(X)
-	Y = np.vstack(Y)
-
-
-	if train_phase:
-		yield X, Y
 	else:
 		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
 		yield X, Y, non_binarized_Y
 
+
+def data_loader_with_LOSO(subject, SubjectPerDatabase, y_labels, subjects, classes):
+	Train_X = []
+	Train_Y = []
+
+
+	Test_X = np.array(SubjectPerDatabase[subject])
+	Test_Y = np_utils.to_categorical(y_labels[subject], classes)
+	Test_Y_gt = y_labels[subject]
+
+	########### Leave-One-Subject-Out ###############
+	if subject==0:
+		for i in range(1,subjects):
+			Train_X.append(SubjectPerDatabase[i])
+			Train_Y.append(y_labels[i])
+	elif subject==subjects-1:
+		for i in range(subjects-1):
+			Train_X.append(SubjectPerDatabase[i])
+			Train_Y.append(y_labels[i])
+	else:
+		for i in range(subjects):
+			if subject == i:
+				continue
+			else:
+				Train_X.append(SubjectPerDatabase[i])
+				Train_Y.append(y_labels[i])	
+	##################################################
+
+
+	############ Conversion to numpy and stacking ###############
+	Train_X=np.vstack(Train_X)
+	Train_Y=np.hstack(Train_Y)
+	Train_Y=np_utils.to_categorical(Train_Y, classes)
+	#############################################################
+
+	return Train_X, Train_Y, Test_X, Test_Y, Test_Y_gt
 
 
 def duplicate_channel(X):
@@ -307,6 +344,7 @@ def loading_casme_labels(root_db_path, dB):
 	label_filename = 'CASME2_label_Ver_2.xls'
 
 	label_path = root_db_path + dB + "/" + label_filename
+	# print(label_path)
 	label_file = pd.read_excel(label_path, converters={'Subject': lambda x: str(x)})
 
 	# remove class others
@@ -366,6 +404,8 @@ class LossHistory(keras.callbacks.Callback):
 		self.accuracy.append(logs.get('categorical_accuracy'))
 		self.epochs.append(logs.get('epochs'))
 
+		
+
 
 
 def record_loss_accuracy(db_home, train_id, db, history_callback):
@@ -381,7 +421,31 @@ def record_loss_accuracy(db_home, train_id, db, history_callback):
 	file_loss.write(str(history_callback.epochs) + "\n")
 	file_loss.close()		
 
+def epoch_analysis(db_home, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss):
+	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/microf1_' + str(train_id) + '.txt', 'a')
+	file_loss.write(str(f1) + "\n")
+	file_loss.close()
 
+	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/war_' + str(train_id) + '.txt', 'a')
+	file_loss.write(str(war) + "\n")
+	file_loss.close()	
+
+	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/uar_' + str(train_id) +  '.txt', 'a')
+	file_loss.write(str(uar) + "\n")
+	file_loss.close()	
+
+	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/macrof1_' + str(train_id) + '.txt', 'a')
+	file_loss.write(str(macro_f1) + "\n")
+	file_loss.close()	
+
+	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/weightedf1_' + str(train_id) +  '.txt', 'a')
+	file_loss.write(str(weighted_f1) + "\n")
+	file_loss.close()	
+
+	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/losses_' + str(train_id) +  '.txt', 'a')
+	file_loss.write(str(loss) + "\n")
+	file_loss.close()	
+		
 
 def sanity_check_image(X, channel, spatial_size):
 	# item = X[0,:,:,:]
@@ -442,7 +506,6 @@ def class_discretization(table, db='CASME_2'):
 				rows_to_remove += [counter]		
 		table = np.delete(table, rows_to_remove, 0)	
 
-
 	elif 'SAMM' in db:
 		for counter in range(len(table)):
 			item = table[counter]
@@ -470,4 +533,4 @@ def class_discretization(table, db='CASME_2'):
 	# print(table)
 
 	return table
-	
+

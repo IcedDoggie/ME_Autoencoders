@@ -163,19 +163,48 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
 	# print(y_aug)
 
 def siamese_base_network(classes=5):
-	input_layer = Input(shape = (3, 224, 224))
-	x = Conv2D(64, (5, 5), activation = 'relu')(input_layer)
-	x = ZeroPadding2D((1, 1))(x)
-	x = Conv2D(64, (2, 2), activation = 'relu')(x)
-	x = ZeroPadding2D((1, 1))(x)
-	x = Conv2D(128, (3, 3), activation = 'relu')(x)
-	x = MaxPooling2D((2, 2), strides = (2, 2))(x)
-	x = Conv2D(256, (3, 3), activation = 'relu')(x)
-	x = MaxPooling2D((2, 2), strides = (2, 2))(x)
-	x = Dense(300, activation = 'relu')(x)
+	input_layer = Input(shape = (3, 64, 64))
+	x = Conv2D(filters = 64, kernel_size = (5, 5), strides = (1, 1), activation = 'relu')(input_layer)
+	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = Conv2D(filters = 128, kernel_size = (3, 3), strides = (1, 1), activation = 'relu')(x)
+	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = Conv2D(filters = 256, kernel_size = (3, 3), strides = (1, 1), activation = 'relu')(x)
+	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = Dense(300 , activation = 'relu')(x)
 	x = Dense(classes, activation = 'softmax')(x)
 
-	return Model(input_layer, x)
+	return Model(inputs = input_layer, outputs = x)
+
+def siamese_base(classes = 5):
+	siamese_net = siamese_base_network()
+	last_layer = siamese_net.layers[-2].output
+	siamese_feat = Model(inputs = siamese_net.input, outputs = last_layer)
+
+	auxiliary_output = Dense(classes, activation = 'softmax')
+	auxiliary_output_2 = Dense(classes, activation = 'softmax')
+
+
+	plot_model(siamese_feat, to_file='siamese_feature_encoder.png', show_shapes=True)
+	input_a = Input(shape=(3, 224, 224))
+	input_b = Input(shape=(3, 224, 224))
+
+	feature_a = siamese_feat(input_a)
+	feature_b = siamese_feat(input_b)	
+
+	softmax_a = auxiliary_output(feature_a)
+	softmax_b = auxiliary_output_2(feature_b)
+
+
+	# concat feature a and b
+	features = Concatenate(axis=-1)([feature_a, feature_b])
+	siamese = Model(inputs = [input_a, input_b], outputs = [softmax_a, softmax_b, features])	
+
+	plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
+	print("MileStone #2")
+		
+
+	return siamese	
+
 
 def siamese_vgg16_imagenet(classes = 5):
 	vgg16 = VGG16(weights = 'imagenet')

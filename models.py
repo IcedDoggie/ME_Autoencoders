@@ -1,8 +1,12 @@
 from keras.models import Sequential, Model
 from keras.layers.core import Flatten, Dense, Dropout
-from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D
+from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D, Conv3D, MaxPooling3D, ZeroPadding3D
 from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSampling2D
 from keras.layers import BatchNormalization, Input
+from keras.engine import InputLayer
+import pydot, graphviz
+
+from keras.utils import np_utils, plot_model, Sequence
 
 
 def VGG_16(spatial_size, classes, channels, channel_first=True, weights_path=None):
@@ -202,3 +206,99 @@ def VGG_16(spatial_size, classes, channels, channel_first=True, weights_path=Non
 	model.add(Dense(classes, activation='softmax')) # 36
 
 	return model
+
+def get_model(summary=False):
+	""" Return the Keras model of the network
+	"""
+	model = Sequential()
+	model.add(ZeroPadding3D((1,1,1),input_shape=(3, 6, 112, 112)))
+
+	# 1st layer group
+	# model.add(InputLayer(batch_input_shape = (None, 3, 6, 112, 112)))
+	model.add(Conv3D(64, (3, 3, 3), activation='relu', 
+							padding='same', name='conv1',
+							strides=(1, 1, 1), 
+							))
+	model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2), 
+						   padding='valid', name='pool1'))
+	# 2nd layer group
+	model.add(Conv3D(128, (3, 3, 3), activation='relu', 
+							padding='same', name='conv2',
+							strides=(1, 1, 1)))
+	model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), 
+						   padding='valid', name='pool2'))
+	# 3rd layer group
+	model.add(Conv3D(256, (3, 3, 3), activation='relu', 
+							padding='same', name='conv3a',
+							strides=(1, 1, 1)))
+	model.add(Conv3D(256, (3, 3, 3), activation='relu', 
+							padding='same', name='conv3b',
+							strides=(1, 1, 1)))
+	model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), 
+						   padding='valid', name='pool3'))
+	# 4th layer group
+	model.add(Conv3D(512, (3, 3, 3), activation='relu', 
+							padding='same', name='conv4a',
+							strides=(1, 1, 1)))
+	model.add(Conv3D(512, (3, 3, 3), activation='relu', 
+							padding='same', name='conv4b',
+							strides=(1, 1, 1)))
+	model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), 
+						   padding='valid', name='pool4'))
+	# 5th layer group
+	model.add(Conv3D(512, (3, 3, 3), activation='relu', 
+							padding='same', name='conv5a',
+							strides=(1, 1, 1)))
+	model.add(Conv3D(512, (3, 3, 3), activation='relu', 
+							padding='same', name='conv5b',
+							strides=(1, 1, 1)))
+	model.add(ZeroPadding3D(padding=(1, 1, 1)))
+	model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), 
+						   padding='valid', name='pool5'))
+	model.add(Flatten())
+	# FC layers group
+	model.add(Dense(4096, activation='relu', name='fc6'))
+	model.add(Dropout(.5))
+	model.add(Dense(4096, activation='relu', name='fc7'))
+	model.add(Dropout(.5))
+	model.add(Dense(487, activation='softmax', name='fc8'))
+	if summary:
+		print(model.summary())
+	return model	
+
+def alex_net(weights_path = None):
+
+	model = Sequential()
+	model.add(Conv2D(64, kernel_size=(11, 11), padding='same', input_shape=(3, 224, 224)))
+	model.add(BatchNormalization())
+	model.add(Activation('relu'))
+	model.add(MaxPooling2D(pool_size=(3, 3)))
+
+	model.add(Conv2D(128, kernel_size=(3, 3), padding='same'))
+	model.add(BatchNormalization())
+	model.add(Activation('relu'))
+	model.add(MaxPooling2D(pool_size=(3, 3)))
+
+	model.add(Conv2D(192, kernel_size=(3, 3), padding='same'))
+	model.add(BatchNormalization())
+	model.add(Activation('relu'))
+	model.add(Conv2D(192, kernel_size=(3, 3), padding='same'))
+	model.add(BatchNormalization())
+	model.add(Activation('relu'))
+
+	model.add(Conv2D(256, kernel_size=(3, 3), padding='same'))
+	model.add(BatchNormalization())
+	model.add(Activation('relu'))
+	model.add(MaxPooling2D(pool_size=(3, 3)))
+
+	model.add(Flatten())
+	model.add(Dense(2048), activation = 'relu')
+	model.add(Dense(2048), activation = 'relu')
+	model.add(Dense(1000), activation = 'softmax')
+
+
+model = get_model(summary=True)
+print(model.summary())
+plot_model(model, to_file = 'c3d', show_shapes=True)
+model.load_weights('/home/ice/Documents/ME_Autoencoders/c3d-sports1M_weights.h5')
+# print("weights loaded")

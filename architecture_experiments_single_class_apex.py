@@ -35,6 +35,7 @@ from networks import train_res50_imagenet, train_vgg16_imagenet, train_inception
 from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
+from utilities import epoch_analysis
 
 def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
 
@@ -69,7 +70,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	spatial_size = spatial_size
 	channels = 3
 	data_dim = 4096
-	tot_mat = np.zeros((classes, classes))
+	# tot_mat = np.zeros((classes, classes))
 
 	# labels reading
 	casme2_table = loading_casme_table(root_dir, casme2_db)
@@ -102,6 +103,19 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	epochs = 100
 	total_samples = 0
 
+	# codes for epoch analysis
+	epochs_step = 10
+	epochs = 10
+	macro_f1_list = []
+	weighted_f1_list = []
+	loss_list = []
+	tot_mat_list = []
+	for counter in range(epochs_step):
+		# create separate tot_mat for diff epoch
+		tot_mat_list += [np.zeros((classes, classes))]
+		macro_f1_list += [0]
+		weighted_f1_list += [0]
+		loss_list += [0]
 
 	# backend
 	if tf_backend_flag:
@@ -109,82 +123,90 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 	# pre-process input images and normalization
 	for sub in range(len(total_list)):
+		# epoch by epoch
+		for epoch_counter in range(epochs_step):
+			tot_mat = tot_mat_list[epoch_counter]
+			print("Current Training Epoch: " + str(epochs))
 
 
-		# model
-		model = type_of_test()
-		model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[metrics.categorical_accuracy])
-		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
+			# model
+			model = type_of_test()
+			model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[metrics.categorical_accuracy])
+			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
+			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
-		# model freezing (dedicated to networks.py)
-		# for layer in model.layers[:-2]:
-		# 	layer.trainable = False
-		for X, y, non_binarized_y in loso_generator:
-			model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True)
-			# model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False)
+			# model freezing (dedicated to networks.py)
+			# for layer in model.layers[:-2]:
+			# 	layer.trainable = False
+			for X, y, non_binarized_y in loso_generator:
+				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True)
+				# model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False)
 
-			model = Model(inputs = model.input, outputs = model.layers[-2].output)
+				model = Model(inputs = model.input, outputs = model.layers[-2].output)
 
-			spatial_features = model.predict(X, batch_size = batch_size)
-			if tf_backend_flag == True:
-				spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
-			clf.fit(spatial_features, non_binarized_y)
+				spatial_features = model.predict(X, batch_size = batch_size)
+				if tf_backend_flag == True:
+					spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
+				clf.fit(spatial_features, non_binarized_y)
+			
+			# save the maximum epoch only
+			if epoch_counter == (epochs_step - 1):
+				weights_name = weights_path + str(sub) + '.h5'
+				model.save_weights(weights_name)
 
+			# Resource Clear up
+			del X, y
 
-		# Resource Clear up
-		del X, y
-
-		# Test Time 
-		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
-
-
-		for X, y, non_binarized_y in test_loso_generator:
-			# Spatial Encoding
-			spatial_features = model.predict(X, batch_size = batch_size)
-			if tf_backend_flag == True:
-
-				spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
-
-			predicted_class = clf.predict(spatial_features)
-
-			non_binarized_y = non_binarized_y[0]
-
-			print(predicted_class)
-			print(non_binarized_y)	
-
-			# for sklearn macro f1 calculation
-			for counter in range(len(predicted_class)):
-				pred += [predicted_class[counter]]
-				y_list += [non_binarized_y[counter]]
+			# Test Time 
+			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
 
 
-			ct = confusion_matrix(non_binarized_y, predicted_class)
-			order = np.unique(np.concatenate((predicted_class, non_binarized_y)))	
-			mat = np.zeros((classes, classes))
-			for m in range(len(order)):
-				for n in range(len(order)):
-					mat[int(order[m]), int(order[n])] = ct[m, n]
-				   
-			tot_mat = mat + tot_mat
+			for X, y, non_binarized_y in test_loso_generator:
+				# Spatial Encoding
+				spatial_features = model.predict(X, batch_size = batch_size)
+				if tf_backend_flag == True:
 
-			[f1, precision, recall] = fpr(tot_mat, classes)
-			file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
-			file.write(str(f1) + "\n")
-			file.close()
-			total_samples += len(non_binarized_y)
-			war = weighted_average_recall(tot_mat, classes, total_samples)
-			uar = unweighted_average_recall(tot_mat, classes)
-			macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
-			print("war: " + str(war))
-			print("uar: " + str(uar))
-			print("Macro_f1: " + str(macro_f1))
-			print("Weighted_f1: " + str(weighted_f1))
+					spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
 
-		weights_name = weights_path + str(sub) + '.h5'
-		model.save_weights(weights_name)
-		# Resource CLear up
-		del X, y, non_binarized_y	
+				predicted_class = clf.predict(spatial_features)
+
+				non_binarized_y = non_binarized_y[0]
+
+				print(predicted_class)
+				print(non_binarized_y)	
+
+				# for sklearn macro f1 calculation
+				for counter in range(len(predicted_class)):
+					pred += [predicted_class[counter]]
+					y_list += [non_binarized_y[counter]]
+
+
+				ct = confusion_matrix(non_binarized_y, predicted_class)
+				order = np.unique(np.concatenate((predicted_class, non_binarized_y)))	
+				mat = np.zeros((classes, classes))
+				for m in range(len(order)):
+					for n in range(len(order)):
+						mat[int(order[m]), int(order[n])] = ct[m, n]
+					   
+				tot_mat = mat + tot_mat
+
+				[f1, precision, recall] = fpr(tot_mat, classes)
+				file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
+				file.write(str(f1) + "\n")
+				file.close()
+				total_samples += len(non_binarized_y)
+				war = weighted_average_recall(tot_mat, classes, total_samples)
+				uar = unweighted_average_recall(tot_mat, classes)
+				macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
+				print("war: " + str(war))
+				print("uar: " + str(uar))
+				print("Macro_f1: " + str(macro_f1))
+				print("Weighted_f1: " + str(weighted_f1))
+
+			weights_name = weights_path + str(sub) + '.h5'
+			model.save_weights(weights_name)
+			# Resource CLear up
+			del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):

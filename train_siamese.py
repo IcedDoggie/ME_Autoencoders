@@ -184,7 +184,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 			for X, y, non_binarized_y in test_loso_generator:
 				# Spatial Encoding
-				model = Model(inputs=model.layers[0].input, outputs=model.layers[3].output)
+				test_model = Model(inputs=model.layers[0].input, outputs=model.layers[3].output)
 				plot_model(model, to_file='test_stage', show_shapes=True)
 				predicted_class = model.predict(X, batch_size = batch_size)
 				predicted_class = np.argmax(predicted_class, axis=1)

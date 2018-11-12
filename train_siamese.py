@@ -34,6 +34,7 @@ from siamese_models import create_siamese_pairs, feature_distance_loss, create_s
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from networks import train_vgg16_imagenet, train_res50_imagenet, train_inceptionv3_imagenet
 from utilities import epoch_analysis
+
 # TODO
 # function to create pairs ( think a bit first), true pair, false pair. NEED TO CREATE PAIRS
 
@@ -115,7 +116,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
-	batch_size = 120
+	batch_size = 100
 	# epochs = 100
 	total_samples = 0
 
@@ -126,12 +127,14 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	weighted_f1_list = []
 	loss_list = []
 	tot_mat_list = []
+	war_list = []
 	for counter in range(epochs_step):
 		# create separate tot_mat for diff epoch
 		tot_mat_list += [np.zeros((classes, classes))]
 		macro_f1_list += [0]
 		weighted_f1_list += [0]
 		loss_list += [0]
+		war_list += [0]
 
 	if os.path.exists(weights_path) == False:
 		os.mkdir(weights_path) 
@@ -185,8 +188,8 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 			for X, y, non_binarized_y in test_loso_generator:
 				# Spatial Encoding
 				test_model = Model(inputs=model.layers[0].input, outputs=model.layers[3].output)
-				plot_model(model, to_file='test_stage', show_shapes=True)
-				predicted_class = model.predict(X, batch_size = batch_size)
+				plot_model(test_model, to_file='test_stage', show_shapes=True)
+				predicted_class = test_model.predict(X, batch_size = batch_size)
 				predicted_class = np.argmax(predicted_class, axis=1)
 				if tf_backend_flag == True:
 
@@ -214,9 +217,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 				tot_mat = mat + tot_mat
 
 				[f1, precision, recall] = fpr(tot_mat, classes)
-				file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
-				file.write(str(f1) + "\n")
-				file.close()
+				# file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
+				# file.write(str(f1) + "\n")
+				# file.close()
 				total_samples += len(non_binarized_y)
 				war = weighted_average_recall(tot_mat, classes, total_samples)
 				uar = unweighted_average_recall(tot_mat, classes)
@@ -227,6 +230,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 				macro_f1_list[epoch_counter] = macro_f1
 				weighted_f1_list[epoch_counter] = weighted_f1
 				loss_list[epoch_counter] = history.losses
+				war_list[epoch_counter] = war
 		
 		# only displays the results for largest epoch
 		print(tot_mat)
@@ -242,11 +246,13 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	for epoch_counter in range(epochs_step):
 		tot_mat = tot_mat_list[epoch_counter]
 		[f1, precision, recall] = fpr(tot_mat, classes)
-		war = weighted_average_recall(tot_mat, classes, total_samples)
+		war = war_list[epoch_counter]
+		# war = weighted_average_recall(tot_mat, classes, total_samples)
 		uar = unweighted_average_recall(tot_mat, classes)
 		macro_f1 = macro_f1_list[epoch_counter]		
 		weighted_f1 = weighted_f1_list[epoch_counter]
 		loss = loss_list[epoch_counter]
+		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
 
 
 		print(tot_mat)
@@ -255,6 +261,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		print("uar: " + str(uar))
 		print("Macro_f1: " + str(macro_f1))
 		print("Weighted_f1: " + str(weighted_f1))		
+
 
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
 

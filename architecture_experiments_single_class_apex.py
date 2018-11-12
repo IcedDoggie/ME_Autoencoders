@@ -96,6 +96,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 	# training configuration
 	learning_rate = 0.0001
+	history = LossHistory()	
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
@@ -110,12 +111,14 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	weighted_f1_list = []
 	loss_list = []
 	tot_mat_list = []
+	war_list = []
 	for counter in range(epochs_step):
 		# create separate tot_mat for diff epoch
 		tot_mat_list += [np.zeros((classes, classes))]
 		macro_f1_list += [0]
 		weighted_f1_list += [0]
 		loss_list += [0]
+		war_list += [0]
 
 	# backend
 	if tf_backend_flag:
@@ -123,15 +126,16 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 	# pre-process input images and normalization
 	for sub in range(len(total_list)):
+		# model
+		model = type_of_test()
+		model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[metrics.categorical_accuracy])		
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
 			tot_mat = tot_mat_list[epoch_counter]
 			print("Current Training Epoch: " + str(epochs))
 
 
-			# model
-			model = type_of_test()
-			model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[metrics.categorical_accuracy])
+
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
@@ -139,12 +143,12 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 			# for layer in model.layers[:-2]:
 			# 	layer.trainable = False
 			for X, y, non_binarized_y in loso_generator:
-				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True)
+				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
 				# model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False)
 
-				model = Model(inputs = model.input, outputs = model.layers[-2].output)
+				encoder = Model(inputs = model.input, outputs = model.layers[-2].output)
 
-				spatial_features = model.predict(X, batch_size = batch_size)
+				spatial_features = encoder.predict(X, batch_size = batch_size)
 				if tf_backend_flag == True:
 					spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
 				clf.fit(spatial_features, non_binarized_y)
@@ -152,7 +156,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 			# save the maximum epoch only
 			if epoch_counter == (epochs_step - 1):
 				weights_name = weights_path + str(sub) + '.h5'
-				model.save_weights(weights_name)
+				encoder.save_weights(weights_name)
 
 			# Resource Clear up
 			del X, y
@@ -163,7 +167,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 			for X, y, non_binarized_y in test_loso_generator:
 				# Spatial Encoding
-				spatial_features = model.predict(X, batch_size = batch_size)
+				spatial_features = encoder.predict(X, batch_size = batch_size)
 				if tf_backend_flag == True:
 
 					spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
@@ -191,22 +195,49 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 				tot_mat = mat + tot_mat
 
 				[f1, precision, recall] = fpr(tot_mat, classes)
-				file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
-				file.write(str(f1) + "\n")
-				file.close()
+				# file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
+				# file.write(str(f1) + "\n")
+				# file.close()
 				total_samples += len(non_binarized_y)
 				war = weighted_average_recall(tot_mat, classes, total_samples)
 				uar = unweighted_average_recall(tot_mat, classes)
 				macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
-				print("war: " + str(war))
-				print("uar: " + str(uar))
-				print("Macro_f1: " + str(macro_f1))
-				print("Weighted_f1: " + str(weighted_f1))
 
-			weights_name = weights_path + str(sub) + '.h5'
-			model.save_weights(weights_name)
+				# results logging
+				tot_mat_list[epoch_counter] = tot_mat
+				macro_f1_list[epoch_counter] = macro_f1
+				weighted_f1_list[epoch_counter] = weighted_f1
+				loss_list[epoch_counter] = history.losses
+				war_list[epoch_counter] = war
+
 			# Resource CLear up
-			del X, y, non_binarized_y	
+			del X, y, non_binarized_y
+		# only displays the results for largest epoch
+		print(tot_mat)
+		print("war: " + str(war))
+		print("uar: " + str(uar))
+		print("Macro_f1: " + str(macro_f1))
+		print("Weighted_f1: " + str(weighted_f1))
+
+	# perform evaluation on each epoch
+	for epoch_counter in range(epochs_step):
+		tot_mat = tot_mat_list[epoch_counter]
+		[f1, precision, recall] = fpr(tot_mat, classes)
+		war = war_list[epoch_counter]
+		# war = weighted_average_recall(tot_mat, classes, total_samples)
+		uar = unweighted_average_recall(tot_mat, classes)
+		macro_f1 = macro_f1_list[epoch_counter]		
+		weighted_f1 = weighted_f1_list[epoch_counter]
+		loss = loss_list[epoch_counter]
+		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
+
+		print(tot_mat)
+		print("f1: " + str(f1))
+		print("war: " + str(war))
+		print("uar: " + str(uar))
+		print("Macro_f1: " + str(macro_f1))
+		print("Weighted_f1: " + str(weighted_f1))	
+	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, tf_backend_flag = False):
@@ -374,34 +405,34 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined D
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', net='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_41B_fs', net = 'res', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
+f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', net = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', net='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_44', net='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_43B', net = 'res', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_43C', net='incepv3', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg16_finetuned, 'vgg16_43', net='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
+# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg16_finetuned, 'vgg16_43', net='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_44', net='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_44B', net = 'res', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_44C', net='incepv3', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
 
 
-print("RESULTS FOR vgg_finetuning")
-print("F1: " + str(f1))
-print("war: " + str(war))
-print("uar: " + str(uar))
-print("Macro_f1: " + str(macro_f1))
-print("Weighted_f1: " + str(weighted_f1))
-print(tot_mat)	
+# print("RESULTS FOR vgg_finetuning")
+# print("F1: " + str(f1))
+# print("war: " + str(war))
+# print("uar: " + str(uar))
+# print("Macro_f1: " + str(macro_f1))
+# print("Weighted_f1: " + str(weighted_f1))
+# print(tot_mat)	
 
-# print("RESULTS FOR res50_finetuning")
-# print("F1: " + str(f1_2))
-# print("war: " + str(war_2))
-# print("uar: " + str(uar_2))
-# print("Macro_f1: " + str(macro_f1_2))
-# print("Weighted_f1: " + str(weighted_f1_2))
-# print(tot_mat_2)	
+print("RESULTS FOR res50_finetuning")
+print("F1: " + str(f1_2))
+print("war: " + str(war_2))
+print("uar: " + str(uar_2))
+print("Macro_f1: " + str(macro_f1_2))
+print("Weighted_f1: " + str(weighted_f1_2))
+print(tot_mat_2)	
 
 # print("RESULTS FOR incepv3_finetuning_f")
 # print("F1: " + str(f1_3))

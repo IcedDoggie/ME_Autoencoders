@@ -2,8 +2,11 @@
 *.png
 *.jpg
 *.dat
+*.mat
+*.npy
+*.out
 ImageModels-master/
 keras-oneshot/
 Siamese-Networks-for-One-Shot-Learning/
-*.mat
 proxy_rearrange.py
+convnet-keras/

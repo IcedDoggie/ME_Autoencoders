@@ -70,7 +70,7 @@ def contrastive_loss(y_true, y_pred):
 
 
 def feature_distance_loss(y_true, vects):
-
+	print(K.int_shape(vects))
 	shape_i, shape_j = K.int_shape(vects)
 	subshape = int(shape_j/2)
 	fx = vects[:, 0:subshape]
@@ -132,7 +132,8 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
 	labels = []
 
 	# emotion based sampling
-
+	print(X_ori.shape)
+	print(X_aug.shape)
 	for img_counter in range(len(X_ori)):
 		curr_ori_img = X_ori[img_counter]
 		curr_ori_label = y_ori[img_counter]
@@ -165,18 +166,21 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
 def siamese_base_network(classes=5):
 	input_layer = Input(shape = (3, 64, 64))
 	x = Conv2D(filters = 64, kernel_size = (5, 5), strides = (1, 1), activation = 'relu')(input_layer)
-	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = MaxPooling2D(pool_size = (2, 2), strides = (1, 1))(x)
 	x = Conv2D(filters = 128, kernel_size = (3, 3), strides = (1, 1), activation = 'relu')(x)
-	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = MaxPooling2D(pool_size = (2, 2), strides = (1, 1))(x)
 	x = Conv2D(filters = 256, kernel_size = (3, 3), strides = (1, 1), activation = 'relu')(x)
-	x = MaxPooling2D(kernel_size = (2, 2), strides = (1, 1))(x)
+	x = MaxPooling2D(pool_size = (2, 2), strides = (1, 1))(x)
+	x = Flatten()(x)
 	x = Dense(300 , activation = 'relu')(x)
 	x = Dense(classes, activation = 'softmax')(x)
 
-	return Model(inputs = input_layer, outputs = x)
+	siamese_model = Model(inputs = input_layer, outputs = x)
 
-def siamese_base(classes = 5):
-	siamese_net = siamese_base_network()
+	return siamese_model
+
+def siamese_base(classes = 3):
+	siamese_net = siamese_base_network(classes = classes)
 	last_layer = siamese_net.layers[-2].output
 	siamese_feat = Model(inputs = siamese_net.input, outputs = last_layer)
 
@@ -185,8 +189,8 @@ def siamese_base(classes = 5):
 
 
 	plot_model(siamese_feat, to_file='siamese_feature_encoder.png', show_shapes=True)
-	input_a = Input(shape=(3, 224, 224))
-	input_b = Input(shape=(3, 224, 224))
+	input_a = Input(shape=(3, 64, 64))
+	input_b = Input(shape=(3, 64, 64))
 
 	feature_a = siamese_feat(input_a)
 	feature_b = siamese_feat(input_b)	
@@ -201,6 +205,7 @@ def siamese_base(classes = 5):
 
 	plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
 	print("MileStone #2")
+	print(siamese.summary())
 		
 
 	return siamese	
@@ -249,6 +254,7 @@ def siamese_vgg16_imagenet(classes = 5):
 
 	plot_model(vgg16, to_file='Siamese_vgg16.png', show_shapes=True)
 	print("MileStone #2")
+	print(vgg16.summary())
 		
 
 	return vgg16
@@ -295,6 +301,7 @@ def siamese_res50_network(classes = 5):
 
 	plot_model(res50, to_file='Siamese_res50.png', show_shapes=True)
 	print("MileStone #2")
+	print(res50.summary())
 		
 
 	return res50	
@@ -347,6 +354,10 @@ def siamese_vgg16_crossdb_imagenet(classes = 3):
 
 	plot_model(vgg16, to_file='Siamese_vgg16.png', show_shapes=True)
 	print("MileStone #2")
+	print(vgg16.summary())
 		
 
 	return vgg16	
+
+# siamese_vgg16_imagenet()
+# siamese_base()

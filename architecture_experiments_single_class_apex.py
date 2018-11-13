@@ -31,7 +31,7 @@ from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
 from networks import test_res50_finetuned, test_vgg16_finetuned, test_inceptionv3_finetuned
-from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet
+from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet, train_alexnet_imagenet, train_shallow_alexnet_imagenet
 from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
@@ -60,7 +60,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 		smic_db = 'SMIC_Optical'
 		timesteps_TIM = 1	
 	elif feature_type == 'flow_strain':
-		casme2_db = 'CASME2_Flow_OS'
+		casme2_db = 'CASME2_Flow_Strain_Normalized'
 		timesteps_TIM = 1
 	elif feature_type == 'flow_strain_224':
 		casme2_db = 'CASME2_Flow_OS_224'
@@ -100,13 +100,13 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 30
+	batch_size  = 90
 	epochs = 100
 	total_samples = 0
 
 	# codes for epoch analysis
-	epochs_step = 10
-	epochs = 10
+	epochs_step = 100
+	epochs = 1
 	macro_f1_list = []
 	weighted_f1_list = []
 	loss_list = []
@@ -128,7 +128,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	for sub in range(len(total_list)):
 		# model
 		model = type_of_test()
-		model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=[metrics.categorical_accuracy])		
+		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
 			tot_mat = tot_mat_list[epoch_counter]
@@ -143,6 +143,10 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 			# for layer in model.layers[:-2]:
 			# 	layer.trainable = False
 			for X, y, non_binarized_y in loso_generator:
+				# model.predict(X)
+				# print(X.shape)
+				# print(y.shape)
+				# print(non_binarized_y.shape)
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
 				# model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False)
 
@@ -404,8 +408,9 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined D
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'alexnet_45B', net=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False)
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', net='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', net = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
+# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', net = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', net='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_44', net='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
@@ -426,13 +431,21 @@ f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_im
 # print("Weighted_f1: " + str(weighted_f1))
 # print(tot_mat)	
 
-print("RESULTS FOR res50_finetuning")
-print("F1: " + str(f1_2))
-print("war: " + str(war_2))
-print("uar: " + str(uar_2))
-print("Macro_f1: " + str(macro_f1_2))
-print("Weighted_f1: " + str(weighted_f1_2))
-print(tot_mat_2)	
+print("RESULTS FOR alexnet")
+print("F1: " + str(f1))
+print("war: " + str(war))
+print("uar: " + str(uar))
+print("Macro_f1: " + str(macro_f1))
+print("Weighted_f1: " + str(weighted_f1))
+print(tot_mat)
+
+# print("RESULTS FOR res50_finetuning")
+# print("F1: " + str(f1_2))
+# print("war: " + str(war_2))
+# print("uar: " + str(uar_2))
+# print("Macro_f1: " + str(macro_f1_2))
+# print("Weighted_f1: " + str(weighted_f1_2))
+# print(tot_mat_2)	
 
 # print("RESULTS FOR incepv3_finetuning_f")
 # print("F1: " + str(f1_3))

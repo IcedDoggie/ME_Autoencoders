@@ -91,7 +91,7 @@ def read_image(root_dir, db, table):
 
 	return img_list, label_list
 
-def create_generator_nonLOSO(x, y, classes, spatial_size = 224, train_phase=True):
+def create_generator_nonLOSO(x, y, classes, net = 'vgg', spatial_size = 224, train_phase=True):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
@@ -109,7 +109,10 @@ def create_generator_nonLOSO(x, y, classes, spatial_size = 224, train_phase=True
 				image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 				image = img.img_to_array(image)
 				image = np.expand_dims(image, axis=0)
-				image = preprocess_input(image) # vgg way
+				if net == 'res':
+					image = res_preprocess_input(image)
+				elif net == 'vgg':
+					image = preprocess_input(image) # vgg way
 				X += [image]
 
 			temp_y = np_utils.to_categorical(y[subj_counter], classes)
@@ -154,10 +157,11 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
+
 					image = np.expand_dims(image, axis=0)
 					if net == 'res':
 						image = res_preprocess_input(image)
-					else:
+					elif net == 'vgg':
 						image = preprocess_input(image)
 					X += [image]
 
@@ -176,7 +180,7 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 					image = np.expand_dims(image, axis=0)
 					if net == 'res':
 						image = res_preprocess_input(image)
-					else:
+					elif net == 'vgg':
 						image = preprocess_input(image)
 					X += [image]
 
@@ -201,7 +205,7 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 					image = np.expand_dims(image, axis=0)
 					if net == 'res':
 						image = res_preprocess_input(image)
-					else:
+					elif net == 'vgg':
 						image = preprocess_input(image)
 					X += [image]
 
@@ -404,8 +408,6 @@ class LossHistory(keras.callbacks.Callback):
 		self.accuracy.append(logs.get('categorical_accuracy'))
 		self.epochs.append(logs.get('epochs'))
 
-		
-
 
 
 def record_loss_accuracy(db_home, train_id, db, history_callback):
@@ -422,30 +424,34 @@ def record_loss_accuracy(db_home, train_id, db, history_callback):
 	file_loss.close()		
 
 def epoch_analysis(db_home, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss):
-	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/microf1_' + str(train_id) + '.txt', 'a')
+
+	result_folder = db_home + 'Classification/' + 'Result/' + db + '/' + str(train_id) + '/'
+	if os.path.isdir(result_folder) == False:
+		os.mkdir(result_folder)
+
+	file_loss = open(result_folder + 'microf1_' + str(train_id) + '.txt', 'a')
 	file_loss.write(str(f1) + "\n")
 	file_loss.close()
 
-	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/war_' + str(train_id) + '.txt', 'a')
+	file_loss = open(result_folder + 'war_' + str(train_id) + '.txt', 'a')
 	file_loss.write(str(war) + "\n")
 	file_loss.close()	
 
-	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/uar_' + str(train_id) +  '.txt', 'a')
+	file_loss = open(result_folder + 'uar_' + str(train_id) +  '.txt', 'a')
 	file_loss.write(str(uar) + "\n")
 	file_loss.close()	
 
-	file_loss = open(db_home + 'Classification/' + 'Result/' + db + '/macrof1_' + str(train_id) + '.txt', 'a')
+	file_loss = open(result_folder + 'macrof1_' + str(train_id) + '.txt', 'a')
 	file_loss.write(str(macro_f1) + "\n")
 	file_loss.close()	
 
-	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/weightedf1_' + str(train_id) +  '.txt', 'a')
+	file_loss = open(result_folder + 'weightedf1_' + str(train_id) +  '.txt', 'a')
 	file_loss.write(str(weighted_f1) + "\n")
 	file_loss.close()	
 
-	file_loss = open(db_home + 'Classification/' + 'Result/'+ db + '/losses_' + str(train_id) +  '.txt', 'a')
+	file_loss = open(result_folder + 'losses_' + str(train_id) +  '.txt', 'a')
 	file_loss.write(str(loss) + "\n")
 	file_loss.close()	
-		
 
 def sanity_check_image(X, channel, spatial_size):
 	# item = X[0,:,:,:]

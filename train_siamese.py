@@ -121,13 +121,18 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	total_samples = 0
 
 	# codes for epoch analysis
-	epochs_step = 10
-	epochs = 10
+	epochs_step = 100
+	epochs = 1
 	macro_f1_list = []
 	weighted_f1_list = []
 	loss_list = []
 	tot_mat_list = []
 	war_list = []
+	f1_list = []
+	uar_list = []
+	pred_list = []
+	y_list_list = []
+
 	for counter in range(epochs_step):
 		# create separate tot_mat for diff epoch
 		tot_mat_list += [np.zeros((classes, classes))]
@@ -135,6 +140,10 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		weighted_f1_list += [0]
 		loss_list += [0]
 		war_list += [0]
+		f1_list += [0]
+		uar_list += [0]
+		pred_list += [[]]
+		y_list_list += [[]]		
 
 	if os.path.exists(weights_path) == False:
 		os.mkdir(weights_path) 
@@ -149,6 +158,8 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 		# Losses will be summed up
 		model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy', feature_distance_loss], optimizer=sgd, metrics=[metrics.categorical_accuracy])
+		f1_king = 0
+
 		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 		# loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
@@ -231,36 +242,41 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 				weighted_f1_list[epoch_counter] = weighted_f1
 				loss_list[epoch_counter] = history.losses
 				war_list[epoch_counter] = war
-		
-		# only displays the results for largest epoch
-		print(tot_mat)
-		print("f1: " + str(f1))
-		print("war: " + str(war))
-		print("uar: " + str(uar))
-		print("Macro_f1: " + str(macro_f1))
-		print("Weighted_f1: " + str(weighted_f1))
+				f1_list[epoch_counter] = f1
+				uar_list[epoch_counter] = uar
+				pred_list[epoch_counter] = pred
+				y_list_list[epoch_counter] = y_list
 
+			# save the maximum epoch only (replace with maximum f1)
+
+			if f1 > f1_king:
+				weights_name = weights_path + str(sub) + '.h5'
+				model.save_weights(weights_name)
+
+			# Resource CLear up
+			del X, y, non_binarized_y
 
 
 	# perform evaluation on each epoch
 	for epoch_counter in range(epochs_step):
 		tot_mat = tot_mat_list[epoch_counter]
-		[f1, precision, recall] = fpr(tot_mat, classes)
+		f1 = f1_list[epoch_counter]
 		war = war_list[epoch_counter]
-		# war = weighted_average_recall(tot_mat, classes, total_samples)
-		uar = unweighted_average_recall(tot_mat, classes)
+		uar = uar_list[epoch_counter]
 		macro_f1 = macro_f1_list[epoch_counter]		
 		weighted_f1 = weighted_f1_list[epoch_counter]
 		loss = loss_list[epoch_counter]
 		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
 
 
-		print(tot_mat)
-		print("f1: " + str(f1))
-		print("war: " + str(war))
-		print("uar: " + str(uar))
-		print("Macro_f1: " + str(macro_f1))
-		print("Weighted_f1: " + str(weighted_f1))		
+	# print confusion matrix of highest f1
+	highest_idx = np.argmax(f1_list)
+	print("Best Results: ")
+	print(tot_mat_list[highest_idx])
+	print("Micro F1: " + str(f1_list[highest_idx]))
+	print("Macro F1: " + str(macro_f1_list[highest_idx]))
+	print("WAR: " + str(war_list[highest_idx]))
+	print("UAR: " + str(uar_list[highest_idx]))	
 
 
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):

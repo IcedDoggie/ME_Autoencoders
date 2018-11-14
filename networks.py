@@ -280,9 +280,11 @@ def train_shallow_alexnet_imagenet(classes = 5):
 	prediction = Activation("softmax")(dense_1)
 
 	model = Model(inputs = model.input, outputs = prediction)		
-
+	plot_model(model, to_file='shallowalex', show_shapes =True)
+	print(model.summary())
 	return model
-
+train_alexnet_imagenet()
+train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet()
 
 # model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)

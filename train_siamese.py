@@ -157,7 +157,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		# loso_generator_aug = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
 		# loso_generator_aug = create_generator_nonLOSO(samm_list, samm_labels, classes, spatial_size = spatial_size, train_phase='train')
-		loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train')
+		loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', net = net)
 
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):

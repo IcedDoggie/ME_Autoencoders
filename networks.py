@@ -251,6 +251,8 @@ def train_alexnet_imagenet(classes = 5):
 	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
 	model.load_weights('alexnet_weights.h5')
 
+
+
 	# add in own classes ( maybe not necessary)
 	last_layer = model.layers[-3].output
 	dense_classifier = Dense(5, activation = 'softmax', name='me_dense')(last_layer)
@@ -260,6 +262,19 @@ def train_alexnet_imagenet(classes = 5):
 
 
 	# freezing
+
+	# 3rd Last
+	for layer in model.layers[:-22]:
+		layer.trainable = False
+
+	# 2nd Last
+	for layer in model.layers[:-20]:
+		layer.trainable = False
+
+	# Last
+	for layer in model.layers[:-14]:
+		layer.trainable = False
+
 
 	return model
 
@@ -283,8 +298,35 @@ def train_shallow_alexnet_imagenet(classes = 5):
 	plot_model(model, to_file='shallowalex', show_shapes =True)
 	print(model.summary())
 	return model
-train_alexnet_imagenet()
-train_shallow_alexnet_imagenet()
+
+def train_3conv_alexnet_imagenet(classes = 5):
+	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
+	model.load_weights('alexnet_weights.h5')
+
+	# modify architecture
+	last_conv_1 = model.layers[5].output
+	conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(last_conv_1)
+	conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+
+	conv_3 = Conv2D(384, (3, 3), strides=(1, 1), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_3 = MaxPooling2D((3, 3), strides=(2, 2))(conv_3)
+	conv_3 = crosschannelnormalization(name="convpool_3")(conv_3)
+	conv_3 = ZeroPadding2D((2,2))(conv_3)
+
+	conv_3 = Flatten(name="flatten")(conv_3)
+	conv_3 = Dropout(0.5)(conv_3)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(conv_3)
+	prediction = Activation("softmax")(dense_1)
+
+	model = Model(inputs = model.input, outputs = prediction)		
+	plot_model(model, to_file='shallowalex', show_shapes =True)
+	print(model.summary())
+	return model
+
+# train_alexnet_imagenet()
+# train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet()
 
 # model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)

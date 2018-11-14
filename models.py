@@ -214,35 +214,10 @@ def alexnet(input_shape, nb_classes, mean_flag):
 	
 	return alexnet
 
-def shallow_alexnet(input_shape, nb_classes, mean_flag): 
-	inputs = Input(shape=input_shape, name='main_input')
 
-	if mean_flag:
-		mean_subtraction = Lambda(mean_subtract, name='mean_subtraction')(inputs)
-		conv_1 = Conv2D(96, (11, 11), strides=(4,4), activation='relu',
-						   name='conv_1', kernel_initializer='he_normal', bias_initializer='he_normal')(mean_subtraction)
-	else:
-		conv_1 = Conv2D(96, (11, 11), strides=(4,4), activation='relu',
-						   name='conv_1', kernel_initializer='he_normal', bias_initializer='he_normal')(inputs)
 
-	conv_2 = MaxPooling2D((3, 3), strides=(2,2))(conv_1)
-	conv_2 = crosschannelnormalization(name="convpool_1")(conv_2)
-	conv_2 = ZeroPadding2D((2,2))(conv_2)
-
-	conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
-	conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
-	conv_2 = crosschannelnormalization(name="convpool_1")(conv_2)
-	conv_2 = ZeroPadding2D((2,2))(conv_2)
-
-	conv_2 = Dropout(0.5)(conv_2)
-	dense_1 = Dense(nb_classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(conv_2)
-	prediction = Activation("softmax")(dense_1)
-
-	alexnet = Model(inputs = inputs, outputs = prediction)
-
-	return alexnet
-
-# model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
-# model = Model(inputs = model.input, outputs = model.layers[7].output)
+model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
+model = Model(inputs = model.input, outputs = model.layers[-22].output)
+print(model.summary())
 # plot_model(model, to_file = 'alexnet', show_shapes = True)
 # # model.load_weights('alexnet_weights.h5')

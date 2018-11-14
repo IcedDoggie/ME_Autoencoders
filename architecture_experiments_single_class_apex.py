@@ -228,6 +228,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 			# save the maximum epoch only (replace with maximum f1)
 			if f1 > f1_king:
+				f1_king = f1
 				weights_name = weights_path + str(sub) + '.h5'
 				model.save_weights(weights_name)
 

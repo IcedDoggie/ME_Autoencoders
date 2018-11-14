@@ -152,9 +152,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 
 		# model initialization for LOSO 
-		model = siamese_vgg16_crossdb_imagenet()
+		# model = siamese_vgg16_crossdb_imagenet()
 		# model = siamese_res50_network()
-		# model = siamese_base()
+		model = siamese_base()
 
 		# Losses will be summed up
 		model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy', feature_distance_loss], optimizer=sgd, metrics=[metrics.categorical_accuracy])
@@ -162,13 +162,13 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
-		# loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
-		loso_generator = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
+		loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
+		# loso_generator = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
 		# loso_generator_aug = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
 
-		# loso_generator_aug = create_generator_nonLOSO(samm_list, samm_labels, classes, spatial_size = spatial_size, train_phase='train')
-		loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', net = net)
+		loso_generator_aug = create_generator_nonLOSO(samm_list, samm_labels, classes, spatial_size = spatial_size, train_phase='train')
+		# loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', net = net)
 
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
@@ -183,15 +183,11 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 			regress_zero = np.zeros(shape = (labels_pairs[:, 0, :].shape[0], 1))	
 
-			# model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], ], batch_size=batch_size, epochs=epochs, callbacks=[stopping], shuffle=False)
 			plot_model(model, show_shapes=True, to_file='vgg16_out_of_siamese.png')
 			# model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False)
 			model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], labels_pairs[:, 1, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False, callbacks=[history])
 
-			# save the maximum epoch only
-			if epoch_counter == (epochs_step - 1):
-				weights_name = weights_path + str(sub) + '.h5'
-				model.save_weights(weights_name)
+
 
 			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
 
@@ -250,6 +246,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 			# save the maximum epoch only (replace with maximum f1)
 
 			if f1 > f1_king:
+				f1_king = f1
 				weights_name = weights_path + str(sub) + '.h5'
 				model.save_weights(weights_name)
 
@@ -405,5 +402,5 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
  
-train(siamese_vgg16_imagenet, train_id='siamese_8', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)
+train(siamese_vgg16_imagenet, train_id='siamese_7', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
 # test(siamese_vgg16_imagenet, train_id='siamese_4', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

@@ -199,7 +199,7 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 			if subj_counter == sub:
 				# print(x)
 				for each_file in x[subj_counter]:
-					print(each_file)
+
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					# print(image)
 					image = img.img_to_array(image)

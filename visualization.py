@@ -272,8 +272,8 @@ def visualize_activation_maps(weights_path, model, designated_layer, img_list, i
 		for (alpha, beta) in zip(gen, ori_gen):
 			X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 			X_ori, _, _ = beta[0], beta[1], beta[2]
-			print(X.shape)
-			print(X_ori.shape)
+			# print(X.shape)
+			# print(X_ori.shape)
 
 			predicted_labels = np.argmax(model.predict(X), axis=1)
 			non_binarized_y = non_binarized_y[0]
@@ -286,44 +286,68 @@ def visualize_activation_maps(weights_path, model, designated_layer, img_list, i
 
 				# utils.apply_modifications(model)
 
-				layer_idx = utils.find_layer_idx(model, 'conv_2')
-				cam = vi.visualize_activation(model, layer_idx=layer_idx, filter_indices=None, seed_input=None, \
-					backprop_modifier=None, grad_modifier=None)				
+				layer_idx = utils.find_layer_idx(model, 'conv_1')
+				layer_shape = model.layers[layer_idx].output_shape
+				filter_num = layer_shape[1]
+				num_rows = 4
+				filter_arrange_dim = int(filter_num / num_rows)
 
-				# reshape operation
-				input_img = input_img.reshape((input_img.shape[1], input_img.shape[2], input_img.shape[3]))
-				input_img = np.transpose(input_img, (1, 2, 0))
-				gray_img = X_ori[img_counter]
-				gray_img = np.transpose(gray_img, (1, 2, 0))
+				print(filter_num)
+				print(layer_shape)
+				print(model.summary())
+
 				# Plotting
-				fig, axes = plt.subplots(1, 2)
-				print(input_img.shape)
-				txt_X = 0
-				txt_Y = 60
-				# Reverse Discretization
-				predict = reverse_discretization(predict[0])
-				label = reverse_discretization(non_binarized_y[img_counter])
-				predict_str = "Predicted: " + predict
-				label_str = "Label: " + label
-				identity_str = identity_arr[temp_identity_counter]
-				temp_identity_counter += 1
+				print("Constructing plots")
+				# fig, axes = plt.subplots(1, 6, figsize=(18, 6))
+
+				fig, axes = plt.subplots(num_rows, filter_arrange_dim, figsize=(100, 100))
+				print(axes.shape)
+				print(axes[0, :].shape)
+				for row_count in range(num_rows):
+					for ax in axes[row_count, :]:
+						ax.set_xticks([])
+						ax.set_yticks([])
+						ax.grid(False)
+				# for ax in axes[]:
+				# 	ax.set_xticks([])
+				# 	ax.set_yticks([])
+				# 	ax.grid(False)		
+
+				# viualize each filter
+				next_row_counter = 0
+				curr_row_counter = 0
+				for filter_count in range(filter_num):
+					print("Visualizing...")
+					cam = vi.visualize_activation(model, layer_idx=layer_idx, filter_indices=filter_count, seed_input=None, \
+						backprop_modifier=None, grad_modifier=None)				
+
+
+
+					print("Plotting...")
+					if curr_row_counter >= filter_arrange_dim:
+						next_row_counter += 1
+						curr_row_counter = 0
+					axes[next_row_counter, curr_row_counter].imshow(cam)
+					curr_row_counter += 1
+					print(str(filter_count) + ' / ' + str(filter_num))
+
 				
-				# plt.text(txt_X, txt_Y, identity_str, fontsize=15)
-				# plt.text(txt_X, txt_Y * 3, predict_str, fontsize=15)
-				# plt.text(txt_X, txt_Y * 4, label_str, fontsize=15)
-
-				axes[0].imshow(cam)
 
 
 
-				for ax in axes:
-					ax.set_xticks([])
-					ax.set_yticks([])
-					ax.grid(False)
+				# for ax in axes[0]:
+				# 	ax.set_xticks([])
+				# 	ax.set_yticks([])
+				# 	ax.grid(False)
 
-				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + identity_str + '.png'
+				# for ax in axes[1]:
+				# 	ax.set_xticks([])
+				# 	ax.set_yticks([])
+				# 	ax.grid(False)
+				# save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + identity_str + '.png'
 				# plt.savefig(save_str)
-				print(str(img_counter) + ' / ' + str(len(predicted_labels)))
+				# print(str(img_counter) + ' / ' + str(len(predicted_labels)))
+				plt.savefig('test1.png')
 				plt.show()
 
 
@@ -357,6 +381,6 @@ ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex/'
 model = train_shallow_alexnet_imagenet(classes=5)
 casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Flow_Strain_Normalized')
 casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
-print(casme_list)
+# print(casme_list)
 # visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')
 visualize_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')

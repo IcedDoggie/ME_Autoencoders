@@ -9,7 +9,7 @@ import cv2
 import pandas as pd
 import os
 import glob
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from sklearn.svm import SVC
 from collections import Counter
@@ -28,7 +28,6 @@ from keras.utils import np_utils, plot_model
 from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
 from keras.applications.resnet50 import preprocess_input as res_preprocess_input
-
 
 
 from labelling import collectinglabel
@@ -198,9 +197,11 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 		# test case
 		else:
 			if subj_counter == sub:
+				# print(x)
 				for each_file in x[subj_counter]:
-					# print(each_file)
+					print(each_file)
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					# print(image)
 					image = img.img_to_array(image)
 					image = np.expand_dims(image, axis=0)
 					if net == 'res':
@@ -540,3 +541,45 @@ def class_discretization(table, db='CASME_2'):
 
 	return table
 
+def reverse_discretization(label, db='CASME'):
+	if 'CASME' in db:
+		if label == 0:
+			label = 'happiness'
+		elif label == 1:
+			label = 'disgust'
+		elif label == 2:
+			label = 'repression'
+		elif label == 3:
+			label = 'surprise'
+		elif label == 4:
+			label = 'others'									
+
+	return label
+
+# from keras.applications.vgg16 import VGG16
+
+# from keras.layers.core import Dense
+
+# from keras.models import Sequential, Model
+
+# from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D, Conv3D, MaxPooling3D, ZeroPadding3D
+
+# root_dir = '/media/ice/OS/Datasets/' + 'Combined_Dataset_Apex_Flow' + '/'
+# casme2_db = 'CASME2_Optical'
+# casme2_table = loading_casme_table(root_dir, casme2_db)
+# casme2_table = class_discretization(casme2_table, 'CASME_2')
+# casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
+
+# vgg16 = VGG16(weights = 'imagenet')
+# last_layer = vgg16.layers[-2].output
+# dense_classifier = Dense(5, activation = 'softmax')(last_layer)
+# vgg16 = Model(inputs = vgg16.input, outputs = dense_classifier)	
+
+
+# # model = train_vgg16_imagenet(classes=5)
+# vgg16.load_weights('13.h5')
+# gen = create_generator_LOSO(casme_list, casme_labels, classes=5, sub=13, net='vgg', spatial_size=224, train_phase='svc')
+# for x, y, non_binarized_y in gen:
+# 	print(len(x))
+# 	print(len(y))
+# 	vgg16.predict(x)

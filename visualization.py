@@ -42,15 +42,18 @@ from keras.models import model_from_json
 import keras
 import pydot, graphviz
 from keras.utils import np_utils, plot_model
+from theano import tensor as T
 
 from labelling import collectinglabel
 from reordering import readinput
 from evaluationmatrix import fpr
 import itertools
+from vis import visualization as vi
+from vis.utils import utils 
 
-# GTK3Agg GTK3Cairo MacOSX Qt4Agg Qt5Agg TkAgg
-# ## WX WXAgg Agg Cairo PS PDF SVG Template
-
+from networks import train_shallow_alexnet_imagenet
+from utilities import loading_casme_table, class_discretization, read_image, create_generator_LOSO
+from utilities import reverse_discretization
 def plot_confusion_matrix(cm, classes,
 						  normalize=False,
 						  title='Confusion matrix',
@@ -146,9 +149,214 @@ def plot_scores_and_losses(result_path, train_id):
 				plt.close()													
 
 
-# Simple call to plot simple graph
+
+def visualize_class_activation_maps(weights_path, model, designated_layer, img_list, img_labels, ori_img, ori_img_path):
+	sys.setrecursionlimit(10000)
+	no_of_subj = []
+	identity_arr = []
+
+	for root, folders, files in os.walk(weights_path):
+		no_of_subj = len(files)
+
+	# get subject and vid identity
+	for root, folders, files in os.walk(ori_img_path):
+		if len(root) > 115:
+			identity_idx = root.split('/', 9)
+			identity = str(identity_idx[-2]) + '_' + str(identity_idx[-1])
+			identity_arr += [identity]
+
+
+	temp_identity_counter = 0
+	for counter in range(no_of_subj):
+		weights_name = weights_path + str(counter) + '.h5'
+		model.load_weights(weights_name)
+
+		gen = create_generator_LOSO(img_list, img_labels, classes=5, sub=counter, net=None, spatial_size = 227, train_phase = False)
+		ori_gen = create_generator_LOSO(ori_img, img_labels, classes=5, sub=counter, net=None, spatial_size = 227, train_phase = False)
+		for (alpha, beta) in zip(gen, ori_gen):
+			X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+			X_ori, _, _ = beta[0], beta[1], beta[2]
+			print(X.shape)
+			print(X_ori.shape)
+
+			predicted_labels = np.argmax(model.predict(X), axis=1)
+			non_binarized_y = non_binarized_y[0]
+
+			# visualize CAM
+			for img_counter in range(len(predicted_labels)):
+				input_img = X[img_counter]
+				input_img = input_img.reshape((1, input_img.shape[0], input_img.shape[1], input_img.shape[2]))
+				predict = np.argmax(model.predict(input_img), axis=1)
+
+				# utils.apply_modifications(model)
+				layer_idx = utils.find_layer_idx(model, 'activation_1')
+				penultimate_layer = utils.find_layer_idx(model, 'max_pooling2d_3')
+				cam = vi.visualize_cam(model, layer_idx=layer_idx, filter_indices=predict, seed_input=input_img, penultimate_layer_idx=penultimate_layer, \
+					backprop_modifier=None, grad_modifier=None)
+
+				# layer_idx = utils.find_layer_idx(model, 'conv_2')
+				# cam = vi.visualize_activation(model, layer_idx=layer_idx, filter_indices=None, seed_input=None, \
+				# 	backprop_modifier=None, grad_modifier=None)				
+
+				# reshape operation
+				input_img = input_img.reshape((input_img.shape[1], input_img.shape[2], input_img.shape[3]))
+				input_img = np.transpose(input_img, (1, 2, 0))
+				gray_img = X_ori[img_counter]
+				gray_img = np.transpose(gray_img, (1, 2, 0))
+				# Plotting
+				fig, axes = plt.subplots(1, 6, figsize=(18, 6))
+				print(input_img.shape)
+				txt_X = 0
+				txt_Y = 60
+				# Reverse Discretization
+				predict = reverse_discretization(predict[0])
+				label = reverse_discretization(non_binarized_y[img_counter])
+				predict_str = "Predicted: " + predict
+				label_str = "Label: " + label
+				identity_str = identity_arr[temp_identity_counter]
+				temp_identity_counter += 1
+				
+				plt.text(txt_X, txt_Y, identity_str, fontsize=15)
+				plt.text(txt_X, txt_Y * 3, predict_str, fontsize=15)
+				plt.text(txt_X, txt_Y * 4, label_str, fontsize=15)
+
+				axes[0].imshow(np.uint8(input_img))
+				axes[1].imshow(cam)
+				axes[2].imshow(vi.overlay(cam, input_img))
+				axes[3].imshow(np.uint8(gray_img))
+				axes[4].imshow(vi.overlay(cam, gray_img))
+				axes[5].imshow(input_img)
+
+
+				for ax in axes:
+					ax.set_xticks([])
+					ax.set_yticks([])
+					ax.grid(False)
+
+				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + identity_str + '.png'
+				plt.savefig(save_str)
+				print(str(img_counter) + ' / ' + str(len(predicted_labels)))
+				# plt.show()
+
+
+			print("Predicted: ")
+			print(predicted_labels)
+			print("GroundTruth: ")
+			print(non_binarized_y)
+
+		# print(weights_name)
+
+def visualize_activation_maps(weights_path, model, designated_layer, img_list, img_labels, ori_img, ori_img_path):	
+	sys.setrecursionlimit(10000)
+	no_of_subj = []
+	identity_arr = []
+
+	for root, folders, files in os.walk(weights_path):
+		no_of_subj = len(files)
+
+	# get subject and vid identity
+	for root, folders, files in os.walk(ori_img_path):
+		if len(root) > 115:
+			identity_idx = root.split('/', 9)
+			identity = str(identity_idx[-2]) + '_' + str(identity_idx[-1])
+			identity_arr += [identity]
+
+
+	temp_identity_counter = 0
+	for counter in range(no_of_subj):
+		weights_name = weights_path + str(counter) + '.h5'
+		model.load_weights(weights_name)
+
+		gen = create_generator_LOSO(img_list, img_labels, classes=5, sub=counter, net=None, spatial_size = 227, train_phase = False)
+		ori_gen = create_generator_LOSO(ori_img, img_labels, classes=5, sub=counter, net=None, spatial_size = 227, train_phase = False)
+		for (alpha, beta) in zip(gen, ori_gen):
+			X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+			X_ori, _, _ = beta[0], beta[1], beta[2]
+			print(X.shape)
+			print(X_ori.shape)
+
+			predicted_labels = np.argmax(model.predict(X), axis=1)
+			non_binarized_y = non_binarized_y[0]
+
+			# visualize CAM
+			for img_counter in range(len(predicted_labels)):
+				input_img = X[img_counter]
+				input_img = input_img.reshape((1, input_img.shape[0], input_img.shape[1], input_img.shape[2]))
+				predict = np.argmax(model.predict(input_img), axis=1)
+
+				# utils.apply_modifications(model)
+
+				layer_idx = utils.find_layer_idx(model, 'conv_2')
+				cam = vi.visualize_activation(model, layer_idx=layer_idx, filter_indices=None, seed_input=None, \
+					backprop_modifier=None, grad_modifier=None)				
+
+				# reshape operation
+				input_img = input_img.reshape((input_img.shape[1], input_img.shape[2], input_img.shape[3]))
+				input_img = np.transpose(input_img, (1, 2, 0))
+				gray_img = X_ori[img_counter]
+				gray_img = np.transpose(gray_img, (1, 2, 0))
+				# Plotting
+				fig, axes = plt.subplots(1, 2)
+				print(input_img.shape)
+				txt_X = 0
+				txt_Y = 60
+				# Reverse Discretization
+				predict = reverse_discretization(predict[0])
+				label = reverse_discretization(non_binarized_y[img_counter])
+				predict_str = "Predicted: " + predict
+				label_str = "Label: " + label
+				identity_str = identity_arr[temp_identity_counter]
+				temp_identity_counter += 1
+				
+				# plt.text(txt_X, txt_Y, identity_str, fontsize=15)
+				# plt.text(txt_X, txt_Y * 3, predict_str, fontsize=15)
+				# plt.text(txt_X, txt_Y * 4, label_str, fontsize=15)
+
+				axes[0].imshow(cam)
+
+
+
+				for ax in axes:
+					ax.set_xticks([])
+					ax.set_yticks([])
+					ax.grid(False)
+
+				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + identity_str + '.png'
+				# plt.savefig(save_str)
+				print(str(img_counter) + ' / ' + str(len(predicted_labels)))
+				plt.show()
+
+
+			print("Predicted: ")
+			print(predicted_labels)
+			print("GroundTruth: ")
+			print(non_binarized_y)
+
+		# print(weights_name)	
+
+def img_label_loading(root_dir, db_type):
+	casme2_table = loading_casme_table(root_dir, db_type)
+	casme2_table = class_discretization(casme2_table, 'CASME_2')
+	casme_list, casme_labels = read_image(root_dir, db_type, casme2_table)
+	# print(casme_list)
+	# print(casme_labels)
+
+	return casme_list, casme_labels
+
+##### Simple call to plot simple graph #####
 # db_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
 # result_path = db_path + 'Classification/Result/Combined_Dataset_Apex_Flow/'
 # train_id = 'Alex_25E'
 # plot_scores_and_losses(result_path, train_id)
 
+##### Simple call to visualize simple cam #####
+weights_path = '/media/ice/OS/Datasets/Weights/alexnet_25E/'
+feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Flow_Strain_Normalized/'
+root_dir = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
+ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex/'
+model = train_shallow_alexnet_imagenet(classes=5)
+casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Flow_Strain_Normalized')
+casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
+print(casme_list)
+# visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')
+visualize_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')

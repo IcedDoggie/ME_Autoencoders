@@ -5,6 +5,7 @@
 *.mat
 *.npy
 *.out
+*.ipynb
 ImageModels-master/
 keras-oneshot/
 Siamese-Networks-for-One-Shot-Learning/

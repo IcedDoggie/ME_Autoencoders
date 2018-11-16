@@ -7,8 +7,9 @@ from keras.engine import InputLayer
 import pydot, graphviz
 
 from keras.utils import np_utils, plot_model, Sequence
-from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
-	splittensor, Softmax4D
+from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, splittensor, Softmax4D
+
+import theano
 from theano import tensor as T
 
 
@@ -153,8 +154,10 @@ def convolutional_autoencoder(spatial_size, channel_first=True, weights_path=Non
 
 
 	return model
+from theano import tensor as T
+def mean_subtract(img):
 
-def mean_subtract(img):   
+
     img = T.set_subtensor(img[:,0,:,:],img[:,0,:,:] - 123.68)
     img = T.set_subtensor(img[:,1,:,:],img[:,1,:,:] - 116.779)
     img = T.set_subtensor(img[:,2,:,:],img[:,2,:,:] - 103.939)
@@ -216,8 +219,8 @@ def alexnet(input_shape, nb_classes, mean_flag):
 
 
 
-model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
-model = Model(inputs = model.input, outputs = model.layers[-22].output)
-print(model.summary())
+# model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
+# model = Model(inputs = model.input, outputs = model.layers[-22].output)
+# print(model.summary())
 # plot_model(model, to_file = 'alexnet', show_shapes = True)
 # # model.load_weights('alexnet_weights.h5')

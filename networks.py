@@ -137,7 +137,7 @@ def test_inceptionv3_finetuned(weights_name = 'imagenet'):
 	return inceptionv3
 
 
-def train_res50_imagenet(classes = 5):
+def train_res50_imagenet(classes = 5, freeze_flag = 'last'):
 	resnet50 = ResNet50(weights = 'imagenet')
 
 	# # load macro
@@ -155,21 +155,24 @@ def train_res50_imagenet(classes = 5):
 		layer.trainable = True
 
 	# # for 2nd last block
-	# for layer in resnet50.layers[:-25]:
-	# 	layer.trainable = False	
+	if freeze_flag == '2nd_last':
+		for layer in resnet50.layers[:-25]:
+			layer.trainable = False	
 
 	# # for 3rd last block
-	# for layer in resnet50.layers[:-37]:
-	# 	layer.trainable = False		
+	elif freeze_flag == '3rd_last':
+		for layer in resnet50.layers[:-37]:
+			layer.trainable = False		
 
 	# # last
-	# for layer in resnet50.layers[:-14]:
-	# 	layer.trainable = False	
+	elif freeze_flag == 'last':
+		for layer in resnet50.layers[:-14]:
+			layer.trainable = False	
 	print(resnet50.summary())
 
 	return resnet50
 
-def train_vgg16_imagenet(classes = 5):
+def train_vgg16_imagenet(classes = 5, freeze_flag = 'last'):
 	vgg16 = VGG16(weights = 'imagenet')
 
 	# # load macro
@@ -193,20 +196,23 @@ def train_vgg16_imagenet(classes = 5):
 	# 	layer.trainable = True
 
 	# train last 2 block
-	for layer in vgg16.layers[:-8]:
-		layer.trainable = False
+	if freeze_flag == '2nd_last':
+		for layer in vgg16.layers[:-8]:
+			layer.trainable = False
 
 	# # train last 3 block
-	# for layer in vgg16.layers[:-9]:
-	# 	layer.trainable = False
+	elif freeze_flag == '3rd_last':
+		for layer in vgg16.layers[:-9]:
+			layer.trainable = False
 
 	# # train last block
-	# for layer in vgg16.layers[:-7]:
-	# 	layer.trainable = False	
+	elif freeze_flag == 'last':
+		for layer in vgg16.layers[:-7]:
+			layer.trainable = False	
 	print(vgg16.summary())
 	return vgg16
 
-def train_inceptionv3_imagenet(classes = 5):
+def train_inceptionv3_imagenet(classes = 5, freeze_flag = 'last'):
 	inceptionv3 = InceptionV3(weights = 'imagenet')
 
 	# # load macro
@@ -224,16 +230,19 @@ def train_inceptionv3_imagenet(classes = 5):
 		layer.trainable = True
 	
 	# # 2nd last incep block
-	# for layer in inceptionv3.layers[:-85]:
-	# 	layer.trainable = False
+	if freeze_flag == '2nd_last':
+		for layer in inceptionv3.layers[:-85]:
+			layer.trainable = False
 
 	# # 3rd last incep block
-	# for layer in inceptionv3.layers[:-117]:
-	# 	layer.trainable = False
+	elif freeze_flag == '3rd_last':
+		for layer in inceptionv3.layers[:-117]:
+			layer.trainable = False
 
 	# # last block
-	# for layer in inceptionv3.layers[:-34]:
-	# 	layer.trainable = False	
+	elif freeze_flag == 'last':
+		for layer in inceptionv3.layers[:-34]:
+			layer.trainable = False	
 
 	print(inceptionv3.summary())
 
@@ -326,7 +335,7 @@ def train_3conv_alexnet_imagenet(classes = 5):
 	print(model.summary())
 	return model
 
-def train_shallow_alexnet_imagenet_with_attention(classes = 5):
+def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'last'):
 	model = train_shallow_alexnet_imagenet(classes)
 	# get conv1 output
 	conv1 = model.layers[2].output

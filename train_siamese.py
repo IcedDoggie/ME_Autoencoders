@@ -38,7 +38,7 @@ from utilities import epoch_analysis
 # TODO
 # function to create pairs ( think a bit first), true pair, false pair. NEED TO CREATE PAIRS
 
-def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
+def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
@@ -162,13 +162,13 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
-		loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
-		# loso_generator = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
+		loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+		# loso_generator = create_generator_LOSO(samm_list, samm_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-		# loso_generator_aug = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
+		# loso_generator_aug = create_generator_LOSO(samm_list, samm_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
 		loso_generator_aug = create_generator_nonLOSO(samm_list, samm_labels, classes, spatial_size = spatial_size, train_phase='train')
-		# loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', net = net)
+		# loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', preprocessing_type = preprocessing_type)
 
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
@@ -189,7 +189,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 
 
-			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
 			for X, y, non_binarized_y in test_loso_generator:
@@ -276,7 +276,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	print("UAR: " + str(uar_list[highest_idx]))	
 
 
-def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
+def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
 
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
@@ -349,7 +349,7 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 		model.compile(loss=['categorical_crossentropy', 'mean_squared_error'], optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 
-		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
+		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
 		for X, y, non_binarized_y in test_loso_generator:
@@ -402,5 +402,5 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
  
-train(siamese_vgg16_imagenet, train_id='siamese_7', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
-# test(siamese_vgg16_imagenet, train_id='siamese_4', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_
+train(siamese_vgg16_imagenet, train_id='siamese_7', preprocessing_type = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
+# test(siamese_vgg16_imagenet, train_id='siamese_4', preprocessing_type = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

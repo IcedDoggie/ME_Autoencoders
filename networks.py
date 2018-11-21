@@ -41,13 +41,14 @@ from keras.engine import InputLayer
 from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
 	splittensor, Softmax4D
 from theano import tensor as T
+from keras.layers import Multiply
 
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
 from utilities import class_merging, read_image, create_generator_LOSO
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder, alexnet
-
+from models import tensor_reshape, attention_control, att_shape
 
 
 def test_res50_imagenet(weights_name = 'imagenet'):
@@ -291,8 +292,8 @@ def train_shallow_alexnet_imagenet(classes = 5):
 
 	conv_2 = Flatten(name="flatten")(conv_2)
 	conv_2 = Dropout(0.5)(conv_2)
-	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(conv_2)
-	prediction = Activation("softmax")(dense_1)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(conv_2)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
 
 	model = Model(inputs = model.input, outputs = prediction)		
 	plot_model(model, to_file='shallowalex', show_shapes =True)
@@ -325,6 +326,52 @@ def train_3conv_alexnet_imagenet(classes = 5):
 	print(model.summary())
 	return model
 
+def train_shallow_alexnet_imagenet_with_attention(classes = 5):
+	model = train_shallow_alexnet_imagenet(classes)
+	# get conv1 output
+	conv1 = model.layers[2].output
+	# get conv2 output
+	conv2 = model.get_layer('conv_2').output
+	# get input to conv2
+	input_conv2 = model.layers[5].output
+	# get shape for feature fc for non-static parameter
+	# feature_fc_dim = K.int_shape(model.layers[-3].output)[1]
+	# get model FC Layer with softmax
+	softmax_activation_layer = model.layers[-1]
+	# get activation for Last FC with softmax
+	softmax_activation = model.layers[-1].output
+	# print(feature_fc_dim)
+	print(softmax_activation)
+
+	# reshape conv2 output into (w*h, num_filters)
+	adapt_conv_shape = Lambda(tensor_reshape, output_shape=(96, ))(input_conv2)
+
+	# perform softmax activation on adapted conv2 output
+	att = softmax_activation_layer(adapt_conv_shape)
+
+
+
+	# Restructuring att	and padding(make sure it conforms with conv1 shape)
+	att = Lambda(attention_control, output_shape = att_shape)([att, softmax_activation])
+	# att = ZeroPadding2D((5, 5))(att)
+	# Multiply(merge) with conv1 output
+	apply_attention = Multiply()([att, input_conv2])
+
+	# get necessary layers below attention applied layer
+	late_layers = model.layers[6:]
+	# print(late_layers)
+	for layer in late_layers:
+		apply_attention = layer(apply_attention)
+
+	model = Model(inputs = model.input, outputs = apply_attention)
+	plot_model(model, to_file = 'attention_shallow_alexnet.png', show_shapes=True)
+	print(model.summary())
+	return model
+# model = train_shallow_alexnet_imagenet()
+# model = train_shallow_alexnet_imagenet_with_attention()
+# model = Model(inputs = model.input, outputs = model.get_layer('last_fc').get_output_at(0))
+# plot_model(model, to_file='test_attention', show_shapes=True)
+
 # train_alexnet_imagenet()
 # train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet()
@@ -336,3 +383,5 @@ def train_3conv_alexnet_imagenet(classes = 5):
 # train_res50_imagenet()
 # train_vgg16_imagenet()
 # train_inceptionv3_imagenet()
+
+# test attention

@@ -36,14 +36,14 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-
-def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False):
+from networks import train_shallow_alexnet_imagenet_with_attention
+def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	working_dir = '/home/ice/Documents/ME_Autoencoders'
+	root_dir = '/media/ice/OS/Datasets/' + db + '/'
+	weights_path = '/media/ice/OS/Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -99,8 +99,8 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 90
-	epochs = 100
+	batch_size  = 1
+	epochs = 1
 	total_samples = 0
 
 	# codes for epoch analysis
@@ -153,7 +153,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined 
 
 				# svm
 				if classifier_flag == 'svc':
-					encoder = Model(inputs = model.input, outputs = model.layers[-2].output)
+					# encoder = Model(inputs = model.input, outputs = model.layers[-2].output)
+					encoder = Model(inputs = model.input, outputs = model.get_layer('last_fc').get_output_at(1))
+
 					spatial_features = encoder.predict(X, batch_size = batch_size)
 					if tf_backend_flag == True:
 						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
@@ -425,7 +427,7 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined D
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'alexnet_25E', net=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='sv', tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet_with_attention, 'test_attention', net=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='svc', tf_backend_flag = False, attention = False)
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', net='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', net = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', net='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)

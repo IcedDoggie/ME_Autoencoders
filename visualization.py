@@ -289,7 +289,7 @@ def visualize_activation_maps(weights_path, model, designated_layer, img_list, i
 				layer_idx = utils.find_layer_idx(model, 'conv_1')
 				layer_shape = model.layers[layer_idx].output_shape
 				filter_num = layer_shape[1]
-				num_rows = 4
+				num_rows = 24
 				filter_arrange_dim = int(filter_num / num_rows)
 
 				print(filter_num)
@@ -344,11 +344,12 @@ def visualize_activation_maps(weights_path, model, designated_layer, img_list, i
 				# 	ax.set_xticks([])
 				# 	ax.set_yticks([])
 				# 	ax.grid(False)
-				# save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + identity_str + '.png'
+				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_AlexNet_25E/' + str(temp_identity_counter) + '.png'
+				temp_identity_counter += 1
 				# plt.savefig(save_str)
 				# print(str(img_counter) + ' / ' + str(len(predicted_labels)))
 				plt.savefig('test1.png')
-				plt.show()
+				# plt.show()
 
 
 			print("Predicted: ")

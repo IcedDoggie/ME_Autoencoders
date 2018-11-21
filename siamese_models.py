@@ -179,7 +179,7 @@ def siamese_base_network(classes=5):
 
 	return siamese_model
 
-def siamese_base(classes = 3):
+def siamese_base(classes = 3, freeze_flag = None):
 	siamese_net = siamese_base_network(classes = classes)
 	last_layer = siamese_net.layers[-2].output
 	siamese_feat = Model(inputs = siamese_net.input, outputs = last_layer)
@@ -306,7 +306,7 @@ def siamese_res50_network(classes = 5):
 
 	return res50	
 
-def siamese_vgg16_crossdb_imagenet(classes = 3):
+def siamese_vgg16_crossdb_imagenet(classes = 3, freeze_flag = 'last'):
 	vgg16 = VGG16(weights = 'imagenet')
 	last_layer = vgg16.layers[-2].output
 	vgg16 = Model(inputs = vgg16.input, outputs = last_layer)
@@ -318,16 +318,19 @@ def siamese_vgg16_crossdb_imagenet(classes = 3):
 	# 	layer.trainable = True
 	
 	# # train last 2 block
-	# for layer in vgg16.layers[:-8]:
-	# 	layer.trainable = False
+	if freeze_flag == '2nd_last':	
+		for layer in vgg16.layers[:-8]:
+			layer.trainable = False
 
 	# # train last 3 block
-	# for layer in vgg16.layers[:-9]:
-	# 	layer.trainable = False
+	elif freeze_flag == '3rd_last':
+		for layer in vgg16.layers[:-9]:
+			layer.trainable = False
 
 	# train last block
-	for layer in vgg16.layers[:-7]:
-		layer.trainable = False	
+	elif freeze_flag == 'last':
+		for layer in vgg16.layers[:-7]:
+			layer.trainable = False	
 
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
 	input_a = Input(shape=(3, 224, 224))

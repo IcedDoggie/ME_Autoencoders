@@ -402,5 +402,5 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
  
-train(siamese_vgg16_imagenet, train_id='siamese_7', preprocessing_type = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
+# train(siamese_vgg16_imagenet, train_id='siamese_7', preprocessing_type = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
 # test(siamese_vgg16_imagenet, train_id='siamese_4', preprocessing_type = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

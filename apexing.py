@@ -303,7 +303,7 @@ def move_smic(path, out):
 
 	# create subj
 	for root, folders, files in os.walk(path):
-		# print(root)
+		print(root)
 		if len(root) < len(path) + 4 and root[-1] != '/': 
 			# print(root)
 			subj_str = root.replace(path, '')

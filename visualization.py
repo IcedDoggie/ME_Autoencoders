@@ -369,19 +369,21 @@ def img_label_loading(root_dir, db_type):
 	return casme_list, casme_labels
 
 ##### Simple call to plot simple graph #####
-# db_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
-# result_path = db_path + 'Classification/Result/Combined_Dataset_Apex_Flow/'
-# train_id = 'Alex_25E'
+db_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
+result_path = db_path + 'Classification/Result/Combined_Dataset_Apex_Flow/'
+train_id = 'alexnet_25G'
+plot_scores_and_losses(result_path, train_id)
+# train_id = 'alexnet_25H'
 # plot_scores_and_losses(result_path, train_id)
 
-##### Simple call to visualize simple cam #####
-weights_path = '/media/ice/OS/Datasets/Weights/alexnet_25E/'
-feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Flow_Strain_Normalized/'
-root_dir = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
-ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex/'
-model = train_shallow_alexnet_imagenet(classes=5)
-casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Flow_Strain_Normalized')
-casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
-# print(casme_list)
-# visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')
-visualize_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')
+# ##### Simple call to visualize simple cam #####
+# weights_path = '/media/ice/OS/Datasets/Weights/alexnet_25E/'
+# feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Flow_Strain_Normalized/'
+# root_dir = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
+# ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex/'
+# model = train_shallow_alexnet_imagenet(classes=5)
+# casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Flow_Strain_Normalized')
+# casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
+# # print(casme_list)
+# # visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')
+# visualize_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Flow_Strain_Normalized/')

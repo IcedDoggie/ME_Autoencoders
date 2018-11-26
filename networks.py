@@ -37,6 +37,7 @@ from keras.layers.core import Flatten, Dense, Dropout
 from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D, Conv3D, MaxPooling3D, ZeroPadding3D
 from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSampling2D
 from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add
+from keras.layers import UpSampling2D, Concatenate
 from keras.engine import InputLayer
 from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
 	splittensor, Softmax4D
@@ -288,7 +289,7 @@ def train_alexnet_imagenet(classes = 5):
 
 	return model
 
-def train_shallow_alexnet_imagenet(classes = 5):
+def train_shallow_alexnet_imagenet(classes = 5, freeze_flag=None):
 	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
 	model.load_weights('alexnet_weights.h5')
 
@@ -305,8 +306,8 @@ def train_shallow_alexnet_imagenet(classes = 5):
 	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
 
 	model = Model(inputs = model.input, outputs = prediction)		
-	plot_model(model, to_file='shallowalex', show_shapes =True)
-	print(model.summary())
+	# plot_model(model, to_file='shallowalex', show_shapes =True)
+	# print(model.summary())
 	return model
 
 def train_3conv_alexnet_imagenet(classes = 5):
@@ -342,7 +343,9 @@ def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'la
 	# get conv2 output
 	conv2 = model.get_layer('conv_2').output
 	# get input to conv2
-	input_conv2 = model.layers[5].output
+	input_conv2 = model.layers[2].output
+	# print(K.int_shape(conv2))
+	# print(K.int_shape(input_conv2))
 	# get shape for feature fc for non-static parameter
 	# feature_fc_dim = K.int_shape(model.layers[-3].output)[1]
 	# get model FC Layer with softmax
@@ -350,10 +353,10 @@ def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'la
 	# get activation for Last FC with softmax
 	softmax_activation = model.layers[-1].output
 	# print(feature_fc_dim)
-	print(softmax_activation)
+	# print(softmax_activation)
 
 	# reshape conv2 output into (w*h, num_filters)
-	adapt_conv_shape = Lambda(tensor_reshape, output_shape=(96, ))(input_conv2)
+	adapt_conv_shape = Lambda(tensor_reshape, output_shape=(256, ))(conv2)
 
 	# perform softmax activation on adapted conv2 output
 	att = softmax_activation_layer(adapt_conv_shape)
@@ -362,23 +365,65 @@ def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'la
 
 	# Restructuring att	and padding(make sure it conforms with conv1 shape)
 	att = Lambda(attention_control, output_shape = att_shape)([att, softmax_activation])
-	# att = ZeroPadding2D((5, 5))(att)
+	# print("original")
+	# print(K.int_shape(att))
+	att = UpSampling2D(size = (2, 2), data_format="channels_first")(att)
+	# print("upsampling2d")
+	# print(K.int_shape(att))
+	att = ZeroPadding2D(((1, 0), (1, 0)))(att)
+	# print("zeropadding")
+	# print(K.int_shape(att))
+
 	# Multiply(merge) with conv1 output
 	apply_attention = Multiply()([att, input_conv2])
 
 	# get necessary layers below attention applied layer
-	late_layers = model.layers[6:]
+	late_layers = model.layers[3:]
 	# print(late_layers)
 	for layer in late_layers:
+		# print(layer)
 		apply_attention = layer(apply_attention)
 
 	model = Model(inputs = model.input, outputs = apply_attention)
 	plot_model(model, to_file = 'attention_shallow_alexnet.png', show_shapes=True)
-	print(model.summary())
+	# print(model.summary())
 	return model
-# model = train_shallow_alexnet_imagenet()
+
+def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+	model_mag = train_shallow_alexnet_imagenet(classes = classes)
+	model_strain = train_shallow_alexnet_imagenet(classes = classes)
+
+	model_mag = Model(inputs = model_mag.input, outputs = model_mag.get_layer('flatten').output)
+	model_strain = Model(inputs = model_strain.input, outputs = model_strain.get_layer('flatten').output)
+	flatten_mag = model_mag(input_mag)
+	flatten_strain = model_strain(input_strain)
+
+	plot_model(model_mag, to_file = 'mag_model', show_shapes=True)
+	plot_model(model_strain, to_file = 'strain_model', show_shapes=True)
+
+	# concatenate
+	concat = Concatenate(axis=-1)([flatten_mag, flatten_strain])
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+
+	model = Model(inputs = [input_mag, input_strain], outputs = prediction)
+	plot_model(model, to_file = 'concat_model', show_shapes=True)
+	print(model.summary())
+
+	return model
+
+# model = dual_stream_shallow_alexnet()
+
+# # model = train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet_with_attention()
-# model = Model(inputs = model.input, outputs = model.get_layer('last_fc').get_output_at(0))
+# print(model.get_layer('flatten').get_output_at(1))
+# model = Model(inputs = model.input, outputs = model.get_layer('flatten').get_output_at(1))
+
 # plot_model(model, to_file='test_attention', show_shapes=True)
 
 # train_alexnet_imagenet()

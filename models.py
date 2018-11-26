@@ -5,15 +5,12 @@ from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSam
 from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add
 from keras.engine import InputLayer
 import pydot, graphviz
-from keras.layers import Multiply
-from keras import backend as K
-
 
 from keras.utils import np_utils, plot_model, Sequence
-from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, splittensor, Softmax4D
-
-import theano
+from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
+	splittensor, Softmax4D
 from theano import tensor as T
+from keras import backend as K
 
 
 def VGG_16(spatial_size, classes, channels, channel_first=True, weights_path=None):
@@ -157,7 +154,7 @@ def convolutional_autoencoder(spatial_size, channel_first=True, weights_path=Non
 
 
 	return model
-from theano import tensor as T
+
 def mean_subtract(img):
 
 
@@ -221,32 +218,37 @@ def alexnet(input_shape, nb_classes, mean_flag):
 	return alexnet
 
 def tensor_reshape(x):
-	print("Tensor Reshape")
-	print(K.int_shape(x))
+	# print("Tensor Reshape")
+	# print(K.int_shape(x))
 	num_filters = K.int_shape(x)[1]
 	w = K.int_shape(x)[2]
 	h = K.int_shape(x)[3]
+	batch = K.shape(x)[0]
+	# print(batch)
+	# batch = K.int_shape(x)[0]
 
 	# this part looks weird, batch size becomes the w*h
-	x = K.reshape(K.transpose(x), (w * h, num_filters))
+	# print(K.int_shape(x))
+	x = K.reshape(K.transpose(x), (batch, w * h, num_filters)) #### HARDCODED BATCH
 
 	return x
 
 def attention_control(args):
 	x, layer = args
-	att = K.reshape(x, (31, 31, 96)) # hardcode conv params
-	# att = K.transpose(att[:, :, :]) # original implementation
-	att = K.transpose(att) # this is different compared to original implementation
+	batch = K.shape(x)[0]
+	att = K.reshape(x, (batch, 27, 27, 256)) # hardcode conv params ##### HARDCODED BATCH
+	att = K.transpose(att[:, :, :]) # original implementation
+	# att = K.transpose(att) # this is different compared to original implementation
 
 	att = K.mean(att, axis=0)
 	att = att / K.sum(att, axis=0)
 	att = K.repeat_elements(att, 96, axis=0)
-	att = K.reshape(att, (1, 96, 31, 31))
+	att = K.reshape(att, (batch, 96, 27, 27)) ##### HARDCODED BATCH
 	return att
 
 def att_shape(input_shape):
 
-	return (input_shape[0][0], 96, 31, 31) # hardcode
+	return (input_shape[0][0], 96, 27, 27) # hardcode
 
 # model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
 # model = Model(inputs = model.input, outputs = model.layers[-22].output)

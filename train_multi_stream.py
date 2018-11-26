@@ -94,6 +94,14 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	total_list = casme_list
 	total_labels = casme_labels
 
+	# MULTI STREAM SETTINGS
+	sec_db = 'CASME2_Flow_Strain_Normalized'
+	casme2_2 = loading_casme_table(root_dir, sec_db)
+	casme2_2 = class_discretization(casme2_2, 'CASME_2')
+	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+
+
+
 
 	# training configuration
 	learning_rate = 0.0001
@@ -106,7 +114,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	total_samples = 0
 
 	# codes for epoch analysis
-	epochs_step = 100
+	epochs_step = 80
 	epochs = 1
 	macro_f1_list = []
 	weighted_f1_list = []
@@ -147,11 +155,14 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			print("Current Training Epoch: " + str(epochs))
 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-			for X, y, non_binarized_y in loso_generator:
+			for (alpha, beta) in zip(loso_generator, loso_generator_2):
+				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
 
-				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+				model.fit([X, X_2], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				# svm
 				if classifier_flag == 'svc':
@@ -175,10 +186,13 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			del X, y
 
 			# Test Time 
-			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
+			for (alpha, beta) in zip(test_loso_generator, test_loso_generator_2):
+				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]				
 
-			for X, y, non_binarized_y in test_loso_generator:
 				# Spatial Encoding
 				# svm
 				if classifier_flag == 'svc':
@@ -189,14 +203,16 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				# softmax
 				elif classifier_flag == 'softmax':
-					spatial_features = model.predict(X)
+					spatial_features = model.predict([X, X_2])
 					predicted_class = np.argmax(spatial_features, axis=1)
 
-				
 				non_binarized_y = non_binarized_y[0]
+				non_binarized_y_2 = non_binarized_y_2[0]
 
+				print("ROW 2 ROW 3 should be the same SANITY CHECK")
 				print(predicted_class)
 				print(non_binarized_y)	
+				print(non_binarized_y_2)
 
 				# for sklearn macro f1 calculation
 				for counter in range(len(predicted_class)):
@@ -341,7 +357,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 		K.set_image_dim_ordering('tf')	
 
 	# pre-process input images and normalization
-	for sub in range(len(total_list)):
+	for sub in range(len(casme_list)):
 		# model
 		model = type_of_test()
 		# load weights
@@ -349,7 +365,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 		clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+		loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
 
 		for X, y, non_binarized_y in loso_generator:
@@ -423,67 +439,15 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 		del X, y, non_binarized_y	
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg16_imagenet, 'vgg16_fs', preprocessing_type='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg19_imagenet, 'vgg19_f', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  test(test_res50_imagenet, 'res50_fs', preprocessing_type='res', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_inceptionv3_imagenet, 'incepv3', preprocessing_type='incep', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
-# f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_f', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg19_imagenet, 'vgg19_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  test(test_mobilenet_imagenet, 'mobilenet_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = True)
-# f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
-# f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='svc', tf_backend_flag = False, attention = True, freeze_flag=None, classes=5)
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', preprocessing_type='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', preprocessing_type = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', preprocessing_type='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'test_attention', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_44', preprocessing_type='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_43B', preprocessing_type = 'res', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_43C', preprocessing_type='incepv3', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(test_vgg16_finetuned, 'vgg16_43', preprocessing_type='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
+print("RESULTS FOR shallow alex dual-stream")
+print("F1: " + str(f1))
+print("war: " + str(war))
+print("uar: " + str(uar))
+print("Macro_f1: " + str(macro_f1))
+print("Weighted_f1: " + str(weighted_f1))
+print(tot_mat)	
 
-# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_44', preprocessing_type='vgg', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_44B', preprocessing_type = 'res', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
-# f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_44C', preprocessing_type='incepv3', feature_type = 'flow_strain_224', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)
-
-
-# print("RESULTS FOR vgg_finetuning")
-# print("F1: " + str(f1))
-# print("war: " + str(war))
-# print("uar: " + str(uar))
-# print("Macro_f1: " + str(macro_f1))
-# print("Weighted_f1: " + str(weighted_f1))
-# print(tot_mat)	
-
-# print("RESULTS FOR alexnet")
-# print("F1: " + str(f1))
-# print("war: " + str(war))
-# print("uar: " + str(uar))
-# print("Macro_f1: " + str(macro_f1))
-# print("Weighted_f1: " + str(weighted_f1))
-# print(tot_mat)
-
-# print("RESULTS FOR res50_finetuning")
-# print("F1: " + str(f1_2))
-# print("war: " + str(war_2))
-# print("uar: " + str(uar_2))
-# print("Macro_f1: " + str(macro_f1_2))
-# print("Weighted_f1: " + str(weighted_f1_2))
-# print(tot_mat_2)	
-
-# print("RESULTS FOR incepv3_finetuning_f")
-# print("F1: " + str(f1_3))
-# print("war: " + str(war_3))
-# print("uar: " + str(uar_3))
-# print("Macro_f1: " + str(macro_f1_3))
-# print("Weighted_f1: " + str(weighted_f1_3))
-# print(tot_mat_3)
-
-# print("RESULTS FOR inceptionresv2_g")
-# print("F1: " + str(f1_4))
-# print("war: " + str(war_4))
-# print("uar: " + str(uar_4))
-# print("Macro_f1: " + str(macro_f1_4))
-# print("Weighted_f1: " + str(weighted_f1_4))
-# print(tot_mat_4)		
+	

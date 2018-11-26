@@ -31,8 +31,11 @@ def fpr(matrix,n_exp):
 			rec = rec + diag/(row + denominator_De_zero)
 			# print(rec)
 
+
+	# since we are summing up all precision and recall, need to average it
 	precision = prec / (n_exp)
-	recall = rec /(n_exp)    # print(precision)
+	recall = rec /(n_exp)    
+	# print(precision)
 	# print(recall)
 	f1 = 2 * precision * recall / (precision + recall)
 

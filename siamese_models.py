@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import theano
+from random import *
 
 from keras.datasets import mnist
 from keras.models import Model
@@ -28,6 +29,7 @@ from keras.callbacks import EarlyStopping
 from keras.layers import GlobalAveragePooling2D, Concatenate
 
 from keras.losses import *
+from networks import train_shallow_alexnet_imagenet
 
 
 
@@ -126,14 +128,22 @@ def create_siamese_pairs(X_ori, X_aug, y_ori, y_aug):
 	print(pairs.shape)
 	print(labels.shape)
 	return pairs, labels
-
-def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
+# {0: 4441, 1: 806, 2: 375}
+# {0: 8648, 1: 806, 2: 375}
+def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=False):
 	pairs = []
 	labels = []
 
 	# emotion based sampling
 	print(X_ori.shape)
 	print(X_aug.shape)
+
+	# INITIAL Ratio
+	print("INITIAL RATIO")
+	y_ori_temp = np.argmax(y_ori, axis = 1)
+	unique, counts = np.unique(y_ori_temp, return_counts = True)
+	print(dict(zip(unique, counts)))
+
 	for img_counter in range(len(X_ori)):
 		curr_ori_img = X_ori[img_counter]
 		curr_ori_label = y_ori[img_counter]
@@ -144,7 +154,13 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
 			curr_aug_label = y_aug[sub_counter]
 			compare_param_aug = np.argmax(curr_aug_label)
 
-			if compare_param_ori == compare_param_aug:
+			if undersampling_flag == True and compare_param_ori == 0:
+				random_num = randint(1, 100)
+				if random_num >= 75 and compare_param_ori == compare_param_aug:
+					pairs += [[curr_ori_img, curr_aug_img]]
+					labels += [[curr_ori_label, curr_aug_label]]
+
+			elif compare_param_ori == compare_param_aug:
 				pairs += [[curr_ori_img, curr_aug_img]]
 				labels += [[curr_ori_label, curr_aug_label]]
 				# print("matched!")
@@ -153,8 +169,18 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug):
 	pairs = np.asarray(pairs)
 	labels = np.asarray(labels)
 
-	print("True Pairs Created ")
+	# Undersampled Ratio
+	print("UnderSampled Ratio")
+	temp_ori = labels[:, 0, :]
+	temp_ori = np.argmax(temp_ori, axis=1)
+	unique, counts = np.unique(temp_ori, return_counts=True)
+	print(dict(zip(unique, counts)))
 
+
+
+	print("True Pairs Created ")
+	print(pairs)
+	print(labels)
 	print(pairs.shape)
 	print(labels.shape)
 	return pairs, labels	
@@ -179,7 +205,7 @@ def siamese_base_network(classes=5):
 
 	return siamese_model
 
-def siamese_base(classes = 3, freeze_flag = None):
+def siamese_base(classes = 3):
 	siamese_net = siamese_base_network(classes = classes)
 	last_layer = siamese_net.layers[-2].output
 	siamese_feat = Model(inputs = siamese_net.input, outputs = last_layer)
@@ -306,7 +332,7 @@ def siamese_res50_network(classes = 5):
 
 	return res50	
 
-def siamese_vgg16_crossdb_imagenet(classes = 3, freeze_flag = 'last'):
+def siamese_vgg16_crossdb_imagenet(classes = 3):
 	vgg16 = VGG16(weights = 'imagenet')
 	last_layer = vgg16.layers[-2].output
 	vgg16 = Model(inputs = vgg16.input, outputs = last_layer)
@@ -318,19 +344,16 @@ def siamese_vgg16_crossdb_imagenet(classes = 3, freeze_flag = 'last'):
 	# 	layer.trainable = True
 	
 	# # train last 2 block
-	if freeze_flag == '2nd_last':	
-		for layer in vgg16.layers[:-8]:
-			layer.trainable = False
+	# for layer in vgg16.layers[:-8]:
+	# 	layer.trainable = False
 
 	# # train last 3 block
-	elif freeze_flag == '3rd_last':
-		for layer in vgg16.layers[:-9]:
-			layer.trainable = False
+	# for layer in vgg16.layers[:-9]:
+	# 	layer.trainable = False
 
 	# train last block
-	elif freeze_flag == 'last':
-		for layer in vgg16.layers[:-7]:
-			layer.trainable = False	
+	for layer in vgg16.layers[:-7]:
+		layer.trainable = False	
 
 	plot_model(vgg16, to_file='vgg16.png', show_shapes=True)
 	input_a = Input(shape=(3, 224, 224))
@@ -362,5 +385,46 @@ def siamese_vgg16_crossdb_imagenet(classes = 3, freeze_flag = 'last'):
 
 	return vgg16	
 
-# siamese_vgg16_imagenet()
+
+def siamese_shallow_alexnet_imagenet(classes = 3):
+	alexnet = train_shallow_alexnet_imagenet(classes = classes)
+	last_layer = alexnet.layers[-4].output
+	alexnet = Model(inputs = alexnet.input, outputs = last_layer)
+	auxiliary_output = Dense(classes, activation = 'softmax')
+	auxiliary_output_2 = Dense(classes, activation = 'softmax')
+
+
+
+	plot_model(alexnet, to_file='alexnet.png', show_shapes=True)
+	input_a = Input(shape=(3, 227, 227))
+	input_b = Input(shape=(3, 227, 227))
+	# input_c = Input(shape=(3, 224, 224))
+	feature_a = alexnet(input_a)
+	feature_b = alexnet(input_b)	
+	# feature_c = alexnet(input_c)
+
+	softmax_a = auxiliary_output(feature_a)
+	softmax_b = auxiliary_output_2(feature_b)
+	# softmax_c = auxiliary_output(feature_c)
+
+	# concat feature a and b
+	features = Concatenate(axis=-1)([feature_a, feature_b])
+
+
+	# distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([feature_a, feature_b])
+
+
+	print("Done")	
+	# alexnet = Model(inputs = [input_a, input_b], outputs = [softmax_a, distance])	
+	alexnet = Model(inputs = [input_a, input_b], outputs = [softmax_a, softmax_b, features])	
+
+	plot_model(alexnet, to_file='Siamese_shallow_alexnet.png', show_shapes=True)
+	print("MileStone #2")
+	print(alexnet.summary())
+		
+
+	return alexnet	
+
+
+# siamese_shallow_alexnet_imagenet()
 # siamese_base()

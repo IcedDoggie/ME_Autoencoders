@@ -37,6 +37,8 @@ from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
 from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet
+from networks import train_shallow_alexnet_imagenet_FCN
+
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
@@ -67,32 +69,40 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		casme2_db = 'CASME2_Flow_OS_224'
 		timesteps_TIM = 1
 
-	classes = 5
+	classes = 3
 	spatial_size = spatial_size
 	channels = 3
 	data_dim = 4096
 	# tot_mat = np.zeros((classes, classes))
 
 	# labels reading
-	casme2_table = loading_casme_table(root_dir, casme2_db)
+	# casme2_table = loading_casme_table(root_dir, casme2_db)
 	# samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
-	# smic_table = loading_smic_table(root_dir, smic_db)
-	casme2_table = class_discretization(casme2_table, 'CASME_2')
+	smic_table = loading_smic_table(root_dir, smic_db)
+	# casme2_table = class_discretization(casme2_table, 'CASME_2')
 	# samm_table = class_discretization(samm_table, 'SAMM')
-	# smic_table = smic_table[0]
+	smic_table = smic_table[0]
 
 
 
 	# images reading, read according to table
 	# samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
-	# smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
+	smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
 	# print(casme2_table)
-	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
+	# casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
 
 	# total_list = samm_list + smic_list + casme_list
 	# total_labels = samm_labels + smic_labels + casme_labels
-	total_list = casme_list
-	total_labels = casme_labels
+	# total_list = casme_list
+	# total_labels = casme_labels
+	# total_list = samm_list
+	# total_labels = samm_labels
+
+	total_list = smic_list
+	total_labels = smic_labels
+
+	print(total_list)
+	print(total_labels)
 
 
 	# training configuration
@@ -256,7 +266,12 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
 
 		# print(tot_mat)
-
+	f1 = f1_list[highest_idx]
+	macro_f1 = macro_f1_list[highest_idx]
+	war = war_list[highest_idx]
+	uar = uar_list[highest_idx]
+	tot_mat = tot_mat_list[highest_idx]
+	weighted_f1 = weighted_f1_list[highest_idx]
 
 	# print confusion matrix of highest f1
 	highest_idx = np.argmax(f1_list)
@@ -433,7 +448,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='svc', tf_backend_flag = False, attention = True, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', preprocessing_type='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', preprocessing_type = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', preprocessing_type='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)

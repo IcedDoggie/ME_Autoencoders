@@ -9,6 +9,7 @@ import json
 import itertools
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
+from sklearn.preprocessing import normalize
 import sys
 from PIL import Image
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
@@ -49,7 +50,7 @@ from utilities import class_merging, read_image, create_generator_LOSO
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder, alexnet
-from models import tensor_reshape, attention_control, att_shape
+from models import tensor_reshape, attention_control, att_shape, l2_normalize, l2_normalize_output_shape
 
 
 def test_res50_imagenet(weights_name = 'imagenet'):
@@ -310,7 +311,7 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag=None):
 	# print(model.summary())
 	return model
 
-def train_3conv_alexnet_imagenet(classes = 5):
+def train_shallow_alexnet_imagenet_FCN(classes = 5, freeze_flag = None):
 	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
 	model.load_weights('alexnet_weights.h5')
 
@@ -321,20 +322,18 @@ def train_3conv_alexnet_imagenet(classes = 5):
 	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
 	conv_2 = ZeroPadding2D((2,2))(conv_2)
 
-	conv_3 = Conv2D(384, (3, 3), strides=(1, 1), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
-	conv_3 = MaxPooling2D((3, 3), strides=(2, 2))(conv_3)
-	conv_3 = crosschannelnormalization(name="convpool_3")(conv_3)
-	conv_3 = ZeroPadding2D((2,2))(conv_3)
+	conv_2 = Dropout(0.5)(conv_2)
+	
+	conv_activate = Conv2D(classes, kernel_size=(1, 1), strides = (1, 1), activation = 'relu', kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='conv_activate')(conv_2)	
+	conv_activate = GlobalAveragePooling2D(data_format = 'channels_first')(conv_activate)
 
-	conv_3 = Flatten(name="flatten")(conv_3)
-	conv_3 = Dropout(0.5)(conv_3)
-	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(conv_3)
-	prediction = Activation("softmax")(dense_1)
-
-	model = Model(inputs = model.input, outputs = prediction)		
-	plot_model(model, to_file='shallowalex', show_shapes =True)
+	model = Model(inputs = model.input, outputs = conv_activate)
+	plot_model(model, to_file='shallowalex_fcn', show_shapes =True)
 	print(model.summary())
+
 	return model
+
+
 
 def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'last'):
 	model = train_shallow_alexnet_imagenet(classes)
@@ -389,6 +388,9 @@ def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'la
 	# print(model.summary())
 	return model
 
+
+
+
 def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 	input_mag = Input(shape=(3, 227, 227))
 	input_strain = Input(shape=(3, 227, 227))
@@ -405,6 +407,7 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 
 	# concatenate
 	concat = Concatenate(axis=-1)([flatten_mag, flatten_strain])
+	concat = Lambda(l2_normalize, output_shape=l2_normalize_output_shape)(concat)
 	dropout = Dropout(0.5)(concat)
 
 	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
@@ -417,7 +420,47 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 
 	return model
 
-# model = dual_stream_shallow_alexnet()
+def train_tri_stream_shallow_alexnet(classes = 5, freeze_flag=None):
+	input_gray = Input(shape=(3, 227, 227))
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+
+	model_gray = train_shallow_alexnet_imagenet(classes = classes)
+	model_mag = train_shallow_alexnet_imagenet(classes = classes)
+	model_strain = train_shallow_alexnet_imagenet(classes = classes)
+
+	model_gray = Model(inputs = model_gray.input, outputs = model_gray.get_layer('flatten').output)
+	model_mag = Model(inputs = model_mag.input, outputs = model_mag.get_layer('flatten').output)
+	model_strain = Model(inputs = model_strain.input, outputs = model_strain.get_layer('flatten').output)
+	flatten_gray = model_gray(input_gray)
+	flatten_mag = model_mag(input_mag)
+	flatten_strain = model_strain(input_strain)
+
+	plot_model(model_gray, to_file = 'model_gray', show_shapes=True)
+	plot_model(model_mag, to_file = 'mag_model', show_shapes=True)
+	plot_model(model_strain, to_file = 'strain_model', show_shapes=True)
+
+	# concatenate
+	concat = Concatenate(axis=-1)([flatten_mag, flatten_strain, flatten_gray])
+	concat = Lambda(l2_normalize, output_shape=l2_normalize_output_shape)(concat)
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+
+	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = prediction)
+	plot_model(model, to_file = 'concat_model', show_shapes=True)
+	print(model.summary())
+
+	return model	
+
+# model = train_tri_stream_shallow_alexnet()
+# model = train_dual_stream_shallow_alexnet()
+# model = train_shallow_alexnet_imagenet_FCN()
+# model = Model(inputs = model.input, outputs = model.get_layer('global_average_pooling2d_1').output)
+# plot_model(model, to_file = 'FCN')
+# model = train_dual_stream_shallow_alexnet()
 
 # # model = train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet_with_attention()

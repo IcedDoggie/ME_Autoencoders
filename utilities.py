@@ -54,7 +54,7 @@ def read_image(root_dir, db, table):
 
 		elif 'SMIC' in db:
 			subj = (item[0])[1:3]
-			subj = "sub" + subj
+			subj = "s" + subj
 			vid = item[0]
 			label = int(item[-1]) - 1
 
@@ -79,8 +79,11 @@ def read_image(root_dir, db, table):
 
 		folder_path = data_path + subj + "/" + vid + "/"
 		files = os.listdir(folder_path)
+
 		for file in files:
+
 			temp = folder_path + file
+
 			img_list_subpartitioning += [temp]
 			label_list_subpartitioning += [label]
 		
@@ -519,22 +522,17 @@ def class_discretization(table, db='CASME_2'):
 			item[-1] = item[-1].lower()
 			if item[-1] == 'anger':
 				table[counter, -1] = 1
-			elif item[-1] == 'contempt':
-				table[counter, -1] = 2
-			elif item[-1] == 'disgust':
-				table[counter, -1] = 3
-			elif item[-1] == 'fear':
-				table[counter, -1] = 4
 			elif item[-1] == 'happiness':
-				table[counter, -1] = 5	
-			elif item[-1] == 'other':
-				table[counter, -1] = 6
-			elif item[-1] == 'sadness':
-				table[counter, -1] = 7		
+				table[counter, -1] = 2
+			elif item[-1] == 'contempt':
+				table[counter, -1] = 3	
 			elif item[-1] == 'surprise':
-				table[counter, -1] = 8
-
-
+				table[counter, -1] = 4	
+			elif item[-1] == 'other':
+				table[counter, -1] = 5
+			elif item[-1] == 'sadness' or item[-1] == 'fear' or item[-1] == 'disgust':
+				rows_to_remove += [counter]
+		table = np.delete(table, rows_to_remove, 0)	
 
 	# table = np.delete(table, rows_to_remove, 0)
 	# print(table)

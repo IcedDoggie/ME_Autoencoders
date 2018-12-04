@@ -101,8 +101,8 @@ def gpu_observer():
 
 
 
-def plot_scores_and_losses(result_path, train_id):
-
+def plot_scores_and_losses(result_path, train_id, range_len = 100):
+	
 	for root, folders, files in os.walk(result_path + train_id):
 		for file in files:
 			# scores = np.loadtxt(root + '/' + file, dtype='str')
@@ -112,7 +112,7 @@ def plot_scores_and_losses(result_path, train_id):
 				score = np.loadtxt(root + '/' + file)
 				plt.figure()
 				plt.title('Micro F1')
-				lines = plt.plot(range(100), score)
+				lines = plt.plot(range(range_len), score)
 				plt.savefig(train_id + 'microf1.png')
 				plt.close()
 			# read micro
@@ -120,7 +120,7 @@ def plot_scores_and_losses(result_path, train_id):
 				score = np.loadtxt(root + '/' + file)
 				plt.figure()	
 				plt.title('Macro F1')			
-				lines = plt.plot(range(100), score)
+				lines = plt.plot(range(range_len), score)
 				plt.savefig(train_id + 'macrof1.png')
 				plt.close()
 			# read micro
@@ -128,7 +128,7 @@ def plot_scores_and_losses(result_path, train_id):
 				score = np.loadtxt(root + '/' + file)
 				plt.figure()
 				plt.title('WAR')
-				lines = plt.plot(range(100), score)
+				lines = plt.plot(range(range_len), score)
 				plt.savefig(train_id + 'war.png')
 				plt.close()
 			# read micro
@@ -136,7 +136,7 @@ def plot_scores_and_losses(result_path, train_id):
 				score = np.loadtxt(root + '/' + file)
 				plt.figure()
 				plt.title('UAR')
-				lines = plt.plot(range(100), score)
+				lines = plt.plot(range(range_len), score)
 				plt.savefig(train_id + 'uar.png')		
 				plt.close()	
 			# read micro
@@ -144,7 +144,7 @@ def plot_scores_and_losses(result_path, train_id):
 				score = np.loadtxt(root + '/' + file)
 				plt.figure()
 				plt.title('LOSS')
-				lines = plt.plot(range(100), score)
+				lines = plt.plot(range(range_len), score)
 				plt.savefig(train_id + 'losses.png')	
 				plt.close()													
 
@@ -371,10 +371,20 @@ def img_label_loading(root_dir, db_type):
 ##### Simple call to plot simple graph #####
 db_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
 result_path = db_path + 'Classification/Result/Combined_Dataset_Apex_Flow/'
-train_id = 'alexnet_25G'
-plot_scores_and_losses(result_path, train_id)
-# train_id = 'alexnet_25H'
+train_id = 'shallow_alexnet_multi_28B'
+plot_scores_and_losses(result_path, train_id, range_len = 100)
+train_id = 'shallow_alexnet_multi_28C'
+plot_scores_and_losses(result_path, train_id, range_len = 100)
+
+# vis siamese
+# db_path = '/media/ice/OS/Datasets/Siamese Macro-Micro/'
+# result_path = db_path + 'Classification/Result/Siamese Macro-Micro/'
+# train_id = 'siamese_6'
 # plot_scores_and_losses(result_path, train_id)
+# train_id = 'siamese_7'
+# plot_scores_and_losses(result_path, train_id)
+# train_id = 'siamese_9'
+# plot_scores_and_losses(result_path, train_id, range_len = 80)
 
 # ##### Simple call to visualize simple cam #####
 # weights_path = '/media/ice/OS/Datasets/Weights/alexnet_25E/'

@@ -43,9 +43,9 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
 	# general variables and path
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	working_dir = '/home/ice/Documents/ME_Autoencoders/'
+	root_dir = '/media/ice/OS/Datasets/' + db + '/'
+	weights_path = '/media/ice/OS/Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -116,7 +116,7 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
-	batch_size = 100
+	batch_size = 10
 	# epochs = 100
 	total_samples = 0
 
@@ -178,7 +178,7 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 			for (alpha, beta) in zip(loso_generator, loso_generator_aug):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_aug, y_aug, non_binarized_y_aug = beta[0], beta[1], beta[2]
-				pairs, labels_pairs = create_siamese_pairs_crossdb(X, X_aug, y, y_aug)
+				pairs, labels_pairs = create_siamese_pairs_crossdb(X, X_aug, y, y_aug, undersampling_flag = True)
 				# pairs_samm, labels_pairs_samm =  create_siamese_pairs(X)
 
 			regress_zero = np.zeros(shape = (labels_pairs[:, 0, :].shape[0], 1))	
@@ -265,6 +265,12 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 		loss = loss_list[epoch_counter]
 		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
 
+	f1 = f1_list[highest_idx]
+	macro_f1 = macro_f1_list[highest_idx]
+	war = war_list[highest_idx]
+	uar = uar_list[highest_idx]
+	tot_mat = tot_mat_list[highest_idx]
+	weighted_f1 = weighted_f1_list[highest_idx]
 
 	# print confusion matrix of highest f1
 	highest_idx = np.argmax(f1_list)
@@ -402,5 +408,5 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
  
-# train(siamese_vgg16_imagenet, train_id='siamese_7', preprocessing_type = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
+train(siamese_base, train_id='test_undersamp', preprocessing_type = None, feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
 # test(siamese_vgg16_imagenet, train_id='siamese_4', preprocessing_type = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

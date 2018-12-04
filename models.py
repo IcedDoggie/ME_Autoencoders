@@ -250,6 +250,15 @@ def att_shape(input_shape):
 
 	return (input_shape[0][0], 96, 27, 27) # hardcode
 
+def l2_normalize(x):
+	x = K.l2_normalize(x, axis=-1)
+
+	return x
+
+
+def l2_normalize_output_shape(input_shape):
+
+	return (input_shape[0], input_shape[1])
 # model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
 # model = Model(inputs = model.input, outputs = model.layers[-22].output)
 # print(model.summary())

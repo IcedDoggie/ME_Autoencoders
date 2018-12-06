@@ -139,6 +139,151 @@ def create_generator_nonLOSO(x, y, classes, net = 'vgg', spatial_size = 224, tra
 		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
 		yield X, Y, non_binarized_Y
 
+
+def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true', sequence_len = 10):
+	# Note: Test will be done separately from Training
+
+	# Filter out only Training Images and Labels
+	
+	# Read and Yield
+	X = []
+	Y = []
+	non_binarized_Y = []
+
+	for subj_counter in range(len(x)):
+		# train case
+		if train_phase == 'true':
+			if subj_counter != sub:
+				one_frame = []
+
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					image = img.img_to_array(image)
+
+					image = np.expand_dims(image, axis=0)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					elif net == 'vgg':
+						image = preprocess_input(image)
+
+					one_frame += [image]
+
+
+				one_vid = np.stack(one_vid, axis=0)
+				# print(one_vid.shape)
+				X += [one_frame]
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				for each_label in temp_y:
+					# Y.append(each_label)
+					Y += [each_label]
+
+		# for svc case
+		elif train_phase == 'svc':
+			if subj_counter != sub:
+				one_frame = []
+				one_vid = []
+				seq_counter = 0
+
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					image = img.img_to_array(image)
+					image = np.expand_dims(image, axis=0)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					elif net == 'vgg':
+						image = preprocess_input(image)
+					image = np.transpose(image, (1, 2, 3, 0))
+					one_frame += [image]
+					
+					if seq_counter / (sequence_len) == 1:
+						one_vid = np.stack(one_vid, axis = -1)
+						one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+						# print(one_vid.shape)
+						X += [one_vid]					
+						one_vid = []
+						seq_counter = 0
+						# print(one_vid)
+
+					one_vid += [image]
+					seq_counter += 1
+
+				one_vid = np.stack(one_vid, axis = -1)
+				one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+				X += [one_vid]	
+				# print(one_vid)
+				
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				# non_binarized_Y += [y[subj_counter]]
+
+				for item in y[subj_counter]:
+					non_binarized_Y += [item]
+
+				for each_label in temp_y:
+					# Y.append(each_label)
+					Y += [each_label]			
+					# non_binarized_Y += [y[subj_counter]]	
+				
+
+		# test case
+		else:
+			if subj_counter == sub:
+				one_frame = []
+				one_vid = []
+				seq_counter = 0
+
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					# print(image)
+					image = img.img_to_array(image)
+					image = np.expand_dims(image, axis=0)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					elif net == 'vgg':
+						image = preprocess_input(image)
+					image = np.transpose(image, (1, 2, 3, 0))
+					one_frame += [image]
+
+					if seq_counter / (sequence_len) == 1:
+						one_vid = np.stack(one_vid, axis = -1)
+						one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+						# print(one_vid.shape)
+						X += [one_vid]					
+						one_vid = []
+						seq_counter = 0
+						# print(one_vid)
+
+					one_vid += [image]
+					seq_counter += 1
+
+				one_vid = np.stack(one_vid, axis = -1)
+				one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+				X += [one_vid]	
+
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				for each_label in temp_y:
+					# Y.append(each_label)
+					Y += [each_label]			
+					non_binarized_Y += [y[subj_counter]]
+
+	X = np.stack(X, axis = 0)
+	Y = np.vstack(Y)
+	Y = Y[::sequence_len]
+	non_binarized_Y = non_binarized_Y[::sequence_len]
+	# print("Antoas")
+
+	if train_phase == 'true':
+		yield X, Y
+	elif train_phase == 'svc':
+		yield X, Y, non_binarized_Y
+	else:
+		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		yield X, Y, non_binarized_Y
+
+
+
 def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true'):
 	# Note: Test will be done separately from Training
 
@@ -226,12 +371,6 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 	if train_phase == 'true':
 		yield X, Y
 	elif train_phase == 'svc':
-		# non_binarized_Y = non_binarized_Y[0]
-		# print(non_binarized_Y)
-		# print(len(non_binarized_Y))
-		# non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
-		# print("svc")
-		# print(non_binarized_Y)
 		yield X, Y, non_binarized_Y
 	else:
 		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn

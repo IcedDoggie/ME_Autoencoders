@@ -61,11 +61,13 @@ def train_3conv_alexnet_imagenet(classes = 5, freeze_flag=None):
 	input_data = Input(shape = (3, 227, 227, 10))
 	conv_2 = Conv3D(256, (5, 5, 5), strides=(1, 1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(input_data)
 	conv_2 = MaxPooling3D((3, 3, 3), strides=(2, 2, 2))(conv_2)
+	conv_2 = BatchNormalization(axis=1)(conv_2)
 	# conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
 	conv_2 = ZeroPadding3D((2, 2, 2))(conv_2)
 
 	conv_3 = Conv3D(384, (3, 3, 3), strides=(1, 1, 1), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
 	conv_3 = MaxPooling3D((3, 3, 3), strides=(2, 2, 2))(conv_3)
+	conv_3 = BatchNormalization(axis=1)(conv_3)
 	# conv_3 = crosschannelnormalization(name="convpool_3")(conv_3)
 	conv_3 = ZeroPadding3D((2, 2, 2))(conv_3)
 

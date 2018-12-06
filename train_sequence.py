@@ -35,7 +35,7 @@ from networks import train_res50_imagenet, train_vgg16_imagenet, train_inception
 from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
-from utilities import epoch_analysis
+from utilities import epoch_analysis, create_generator_LOSO_sequence
 from sequence_networks import train_3conv_alexnet_imagenet
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
@@ -99,8 +99,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# total_list = smic_list
 	# total_labels = smic_labels
 
-	print(total_list)
-	print(total_labels)
+	# print(total_list)
+	# print(total_labels)
 
 
 	# training configuration
@@ -155,10 +155,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			print("Current Training Epoch: " + str(epochs))
 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			loso_generator = create_generator_LOSO_sequence(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
 			for X, y, non_binarized_y in loso_generator:
-
+				print(X.shape)
+				print(y.shape)
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
 
 				# svm
@@ -183,7 +184,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			del X, y
 
 			# Test Time 
-			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator = create_generator_LOSO_sequence(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
 			for X, y, non_binarized_y in test_loso_generator:

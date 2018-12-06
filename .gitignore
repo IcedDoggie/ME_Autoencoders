@@ -6,6 +6,7 @@
 *.npy
 *.out
 *.ipynb
+*.csv
 ImageModels-master/
 keras-oneshot/
 Siamese-Networks-for-One-Shot-Learning/

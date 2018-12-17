@@ -1,10 +1,11 @@
 import shutil
 import os
 
-path = '/media/ice/OS/Datasets/u_v_os/'
-output_path = '/media/ice/OS/Datasets/CASME2_Flow_Strain_Normalized/'
+path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/smic/'
+output_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SMIC_Flow_Strain_Normalized/'
 
 for root, folders, files in os.walk(path):
+
 	for file in files:
 		sep = file.split('_', 1)
 		subj = sep[0]

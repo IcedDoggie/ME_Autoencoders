@@ -333,8 +333,6 @@ def train_shallow_alexnet_imagenet_FCN(classes = 5, freeze_flag = None):
 
 	return model
 
-
-
 def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'last'):
 	model = train_shallow_alexnet_imagenet(classes)
 	# get conv1 output
@@ -387,8 +385,6 @@ def train_shallow_alexnet_imagenet_with_attention(classes = 5, freeze_flag = 'la
 	plot_model(model, to_file = 'attention_shallow_alexnet.png', show_shapes=True)
 	# print(model.summary())
 	return model
-
-
 
 
 def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
@@ -455,6 +451,180 @@ def train_tri_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 
 	return model	
 
+def train_tri_stream_shallow_alexnet_pooling_merged(classes=5, freeze_flag=None):
+	input_gray = Input(shape=(3, 227, 227))
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+
+	model_gray = train_shallow_alexnet_imagenet(classes = classes)
+	model_mag = train_shallow_alexnet_imagenet(classes = classes)
+	model_strain = train_shallow_alexnet_imagenet(classes = classes)
+	model_gray = Model(inputs = model_gray.input, outputs = model_gray.layers[-5].output)
+	model_mag = Model(inputs = model_mag.input, outputs = model_mag.layers[-5].output)
+	model_strain = Model(inputs = model_strain.input, outputs = model_strain.layers[-5].output)
+
+	padded_gray = model_gray(input_gray)
+	padded_mag = model_mag(input_mag)
+	padded_strain = model_strain(input_strain)
+
+	# concatenate via multipling the padded convolutions
+	concat = Multiply()([padded_gray, padded_mag, padded_strain])
+	concat = Flatten()(concat)
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = prediction)
+	plot_model(model, to_file = 'concat_multi_stream_pooled', show_shapes=True)
+	print(model.summary())
+
+	return model
+
+
+def train_convolutional_latent_features(classes = 5, spatial_size = 227):
+	input_data = Input(shape=(3, spatial_size, spatial_size))
+
+	# Encoder
+	conv_2 = Conv2D(64, (5, 5), strides=(1, 1), activation='relu', name='conv_1', kernel_initializer='he_normal', bias_initializer='he_normal')(input_data)
+	conv_2 = MaxPooling2D((3, 3), strides=(1, 1))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_1")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+
+	conv_2 = Conv2D(16, (11, 11), strides=(2, 2), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = MaxPooling2D((3, 3), strides=(1, 1))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+
+	conv_2 = Conv2D(8, (11, 11), strides=(2, 2), activation='relu', name='conv_5', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = MaxPooling2D((3, 3), strides=(1, 1))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_5")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)	
+
+	conv_2 = Conv2D(1, (11, 11), strides=(3, 3), activation='relu', name='conv_6', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = MaxPooling2D((3, 3), strides=(1, 1))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_6")(conv_2)
+	conv_2 = ZeroPadding2D(((3, 2), (3, 2)), name='latent_features')(conv_2)		
+
+
+
+	model = Model(inputs = input_data, outputs = conv_2)
+	plot_model(model, to_file = 'train_convolutional_latent_features', show_shapes=True)
+	print(model.summary())
+	return model
+
+def train_tri_stream_shallow_alexnet_pooling_merged_latent_features(classes=5, freeze_flag=None):
+	input_gray = Input(shape=(3, 227, 227))
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+
+	model_mag = train_shallow_alexnet_imagenet(classes = classes)
+	model_strain = train_shallow_alexnet_imagenet(classes = classes)
+	model_mag = Model(inputs = model_mag.input, outputs = model_mag.layers[-5].output)
+	model_strain = Model(inputs = model_strain.input, outputs = model_strain.layers[-5].output)
+
+
+	model_gray = train_convolutional_latent_features(classes = classes)	
+	auto_feat = model_gray(input_gray)
+
+
+	mag_feat = model_mag(input_mag)
+	strain_feat = model_strain(input_strain)
+
+	# concatenate via multipling the padded convolutions
+	concat = Multiply()([auto_feat, mag_feat, strain_feat])
+	concat = Flatten()(concat)
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+	# Decoder
+	conv_2 = Conv2D(1, (11, 11), strides=(2, 2), activation='relu', name='conv_7', kernel_initializer='he_normal', bias_initializer='he_normal')(auto_feat)
+	conv_2 = UpSampling2D((5, 5))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_7")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)	
+
+	conv_2 = Conv2D(8, (11, 11), strides=(2, 2), activation='relu', name='conv_8', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = UpSampling2D((3, 3))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_8")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+
+	conv_2 = Conv2D(16, (11, 11), strides=(1, 1), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = UpSampling2D((4, 4))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_3")(conv_2)
+
+	conv_2 = Conv2D(64, (5, 5), strides=(1, 1), activation='relu', name='conv_4', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+	conv_2 = UpSampling2D((4, 4))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_4")(conv_2)
+	conv_2 = ZeroPadding2D((2,2), name = 'decoder_feat')(conv_2)
+	recon_out = Conv2D(3, (2, 2), strides=(1, 1), activation='relu', name='conv_5', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
+
+
+	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = [prediction, recon_out])
+	plot_model(model, to_file = 'train_tri_stream_shallow_alexnet_pooling_merged_latent_features', show_shapes=True)
+	print(model.summary())
+
+	return model
+
+
+def train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion(classes=5, freeze_flag=None):	
+	input_gray = Input(shape=(3, 227, 227))
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+
+	model_gray = train_shallow_alexnet_imagenet(classes = classes)
+	model_mag = train_shallow_alexnet_imagenet(classes = classes)
+	model_strain = train_shallow_alexnet_imagenet(classes = classes)
+	model_gray_first_level = Model(inputs = model_gray.input, outputs = model_gray.layers[-9].output)
+	model_mag_first_level = Model(inputs = model_mag.input, outputs = model_mag.layers[-9].output)
+	model_strain_first_level = Model(inputs = model_strain.input, outputs = model_strain.layers[-9].output)
+	# model_gray_second_level = Model(inputs = model_gray.layers[-9].output, outputs = model_gray.layers[-5].output)
+	# model_mag_second_level = Model(inputs = model_mag.layers[-9].output, outputs = model_mag.layers[-5].output)
+	# model_strain_second_level = Model(inputs = model_strain.layers[-9].output, outputs = model_strain.layers[-5].output)
+
+
+	gray_first_level = model_gray_first_level(input_gray)
+	mag_first_level = model_mag_first_level(input_mag)
+	strain_first_level = model_strain_first_level(input_strain)
+
+	concat_gray_mag = Multiply()([gray_first_level, mag_first_level])
+	concat_mag_strain = Multiply()([mag_first_level, strain_first_level])
+	concat_strain_gray = Multiply()([strain_first_level, gray_first_level])
+
+	# 2nd level conv and merging
+	conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(concat_gray_mag)
+	conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+
+	conv_3 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal')(concat_mag_strain)
+	conv_3 = MaxPooling2D((3, 3), strides=(2, 2))(conv_3)
+	conv_3 = crosschannelnormalization(name="convpool_3")(conv_3)
+	conv_3 = ZeroPadding2D((2,2))(conv_3)
+
+	conv_4 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_4', kernel_initializer='he_normal', bias_initializer='he_normal')(concat_strain_gray)
+	conv_4 = MaxPooling2D((3, 3), strides=(2, 2))(conv_4)
+	conv_4 = crosschannelnormalization(name="convpool_4")(conv_4)
+	conv_4 = ZeroPadding2D((2,2))(conv_4)	
+
+	concat_all = Multiply()([conv_2, conv_3, conv_4])
+
+	flatten = Flatten(name="flatten")(concat_all)
+	dropout = Dropout(0.5)(flatten)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+	model = Model(inputs = [input_gray, input_mag, input_strain], outputs = prediction)		
+	print(model.summary())
+	plot_model(model, to_file='train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion', show_shapes=True)
+
+
+	return model
+
+# train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion()
+
+# model = train_tri_stream_shallow_alexnet_pooling_merged()
 # model = train_tri_stream_shallow_alexnet()
 # model = train_dual_stream_shallow_alexnet()
 # model = train_shallow_alexnet_imagenet_FCN()
@@ -462,7 +632,7 @@ def train_tri_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 # plot_model(model, to_file = 'FCN')
 # model = train_dual_stream_shallow_alexnet()
 
-# # model = train_shallow_alexnet_imagenet()
+# model = train_shallow_alexnet_imagenet()
 # model = train_shallow_alexnet_imagenet_with_attention()
 # print(model.get_layer('flatten').get_output_at(1))
 # model = Model(inputs = model.input, outputs = model.get_layer('flatten').get_output_at(1))

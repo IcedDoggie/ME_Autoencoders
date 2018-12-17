@@ -30,7 +30,7 @@ from utilities import class_merging, read_image, create_generator_LOSO, class_di
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from siamese_models import siamese_vgg16_imagenet, siamese_res50_network, siamese_vgg16_crossdb_imagenet, siamese_base
-from siamese_models import create_siamese_pairs, feature_distance_loss, create_siamese_pairs_crossdb
+from siamese_models import create_siamese_pairs, feature_distance_loss, create_siamese_pairs_crossdb, multi_stream_cross_db_siamese_base_networks
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from networks import train_vgg16_imagenet, train_res50_imagenet, train_inceptionv3_imagenet
 from utilities import epoch_analysis
@@ -60,7 +60,12 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 		casme2_db = 'CASME2_Optical'
 		samm_db = 'SAMM_Optical'
 		smic_db = 'SMIC_Optical'
-		timesteps_TIM = 1	
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain':
+		casme2_db = 'CASME2_Flow_Strain_Normalized'
+		samm_db = 'SAMM_Flow_Strain_Normalized'
+		smic_db = 'SMIC+_Flow_Strain_Normalized'		
+		timesteps_TIM = 1
 
 	classes = 3
 	spatial_size = spatial_size
@@ -154,7 +159,8 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 		# model initialization for LOSO 
 		# model = siamese_vgg16_crossdb_imagenet()
 		# model = siamese_res50_network()
-		model = siamese_base()
+		# model = siamese_base()
+		model = multi_stream_cross_db_siamese_base_networks()
 
 		# Losses will be summed up
 		model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy', feature_distance_loss], optimizer=sgd, metrics=[metrics.categorical_accuracy])
@@ -408,5 +414,5 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
  
-train(siamese_base, train_id='test_undersamp', preprocessing_type = None, feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
+train(multi_stream_cross_db_siamese_base_networks, train_id='test_undersamp', preprocessing_type = None, feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
 # test(siamese_vgg16_imagenet, train_id='siamese_4', preprocessing_type = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

@@ -101,8 +101,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	total_list = smic_list
 	total_labels = smic_labels
 
-	print(total_list)
-	print(total_labels)
+	# print(total_list)
+	# print(total_labels)
 
 
 	# training configuration
@@ -448,7 +448,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 64, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', preprocessing_type='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', preprocessing_type = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', preprocessing_type='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)

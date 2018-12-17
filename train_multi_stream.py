@@ -36,13 +36,14 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet
+from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged
+from networks import train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/ice/Documents/ME_Autoencoders'
+	working_dir = '/home/ice/Documents/ME_Autoencoders/'
 	root_dir = '/media/ice/OS/Datasets/' + db + '/'
 	weights_path = '/media/ice/OS/Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
@@ -100,7 +101,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	casme2_2 = class_discretization(casme2_2, 'CASME_2')
 	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
 
-
+	third_db = 'CASME2_Flow_Strain_Normalized'
+	casme2_3 = loading_casme_table(root_dir, third_db)
+	casme2_3 = class_discretization(casme2_3, 'CASME_2')
+	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
 
 
 	# training configuration
@@ -109,7 +113,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 10
+	batch_size  = 60
 	epochs = 1
 	total_samples = 0
 
@@ -145,7 +149,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	for sub in range(len(total_list)):
 		# model
 		model = type_of_test(classes = classes, freeze_flag = freeze_flag)
-		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		# model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		model.compile(loss=['categorical_crossentropy', 'mean_squared_error'], optimizer=adam, metrics=[metrics.categorical_accuracy])		
+
 		f1_king = 0
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
@@ -157,12 +163,15 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 			loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 			loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-			for (alpha, beta) in zip(loso_generator, loso_generator_2):
+			for (alpha, beta, omega) in zip(loso_generator, loso_generator_2, loso_generator_3):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
+				X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]
 
-				model.fit([X, X_2], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				# model.fit([X, X_2, X_3], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				model.fit([X, X_2, X_3], [y, X_2], batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				# svm
 				if classifier_flag == 'svc':
@@ -173,11 +182,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 						plot_model(encoder, to_file='encoder.png', show_shapes=True)
 					else:
 						encoder = Model(inputs = model.input, outputs = model.get_layer('softmax_activate').output)
-					spatial_features = encoder.predict([X, X_2], batch_size = batch_size)
+					spatial_features = encoder.predict([X, X_2, X_3], batch_size = batch_size)
 					if tf_backend_flag == True:
 						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
-					print(spatial_features)
-					print(spatial_features.shape)
+
 					clf.fit(spatial_features, non_binarized_y)
 
 
@@ -189,22 +197,24 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			# Test Time 
 			test_loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 			test_loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
-			for (alpha, beta) in zip(test_loso_generator, test_loso_generator_2):
+			for (alpha, beta, omega) in zip(test_loso_generator, test_loso_generator_2, test_loso_generator_3):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
-				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]				
+				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]	
+				X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]				
 
 				# Spatial Encoding
 				# svm
 				if classifier_flag == 'svc':
-					spatial_features = encoder.predict([X, X_2], batch_size = batch_size)
+					spatial_features = encoder.predict([X, X_2, X_3], batch_size = batch_size)
 					if tf_backend_flag == True:
 						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
 					predicted_class = clf.predict(spatial_features)
 
 				# softmax
 				elif classifier_flag == 'softmax':
-					spatial_features = model.predict([X, X_2])
+					spatial_features = model.predict([X, X_2, X_3])
 					predicted_class = np.argmax(spatial_features, axis=1)
 
 				non_binarized_y = non_binarized_y[0]
@@ -274,12 +284,6 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 		# print(tot_mat)
 
-	f1 = f1_list[highest_idx]
-	macro_f1 = macro_f1_list[highest_idx]
-	war = war_list[highest_idx]
-	uar = uar_list[highest_idx]
-	tot_mat = tot_mat_list[highest_idx]
-	weighted_f1 = weighted_f1_list[highest_idx]
 
 	# print confusion matrix of highest f1
 	highest_idx = np.argmax(f1_list)
@@ -289,6 +293,14 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	print("Macro F1: " + str(macro_f1_list[highest_idx]))
 	print("WAR: " + str(war_list[highest_idx]))
 	print("UAR: " + str(uar_list[highest_idx]))
+
+
+	f1 = f1_list[highest_idx]
+	macro_f1 = macro_f1_list[highest_idx]
+	war = war_list[highest_idx]
+	uar = uar_list[highest_idx]
+	tot_mat = tot_mat_list[highest_idx]
+	weighted_f1 = weighted_f1_list[highest_idx]
 
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
@@ -447,9 +459,9 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'test_attention', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='svc', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_tri_stream_shallow_alexnet_pooling_merged_latent_features, 'test', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
-print("RESULTS FOR shallow alex dual-stream")
+print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))
 print("war: " + str(war))
 print("uar: " + str(uar))

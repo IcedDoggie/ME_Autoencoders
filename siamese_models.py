@@ -26,7 +26,8 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras import backend as K
 from keras.layers.core import Dense
 from keras.callbacks import EarlyStopping
-from keras.layers import GlobalAveragePooling2D, Concatenate
+from keras.layers import GlobalAveragePooling2D, Concatenate, Multiply
+from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add
 
 from keras.losses import *
 from networks import train_shallow_alexnet_imagenet
@@ -179,8 +180,8 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=
 
 
 	print("True Pairs Created ")
-	print(pairs)
-	print(labels)
+	# print(pairs)
+	# print(labels)
 	print(pairs.shape)
 	print(labels.shape)
 	return pairs, labels	
@@ -229,10 +230,11 @@ def siamese_base(classes = 3):
 	features = Concatenate(axis=-1)([feature_a, feature_b])
 	siamese = Model(inputs = [input_a, input_b], outputs = [softmax_a, softmax_b, features])	
 
-	plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
-	print("MileStone #2")
-	print(siamese.summary())
-		
+	# plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
+	# print(siamese.summary())
+
+	# plot_model(siamese_net, to_file='siamese_base_net.png', show_shapes=True)
+	# print(siamese_net.summary())		
 
 	return siamese	
 
@@ -426,5 +428,48 @@ def siamese_shallow_alexnet_imagenet(classes = 3):
 	return alexnet	
 
 
+def multi_stream_cross_db_siamese_base_networks(classes = 3):
+	siamese_net_alpha = siamese_base_network()
+	siamese_net_beta = siamese_base_network()
+	siamese_net_omega = siamese_base_network()
+
+	# feature encoder layer
+	# POOLED FEATURES
+	pool_alpha = Model(inputs = siamese_net_alpha.input, outputs = siamese_net_alpha.layers[-4].output)
+	pool_beta = Model(inputs = siamese_net_beta.input, outputs = siamese_net_beta.layers[-4].output)
+	pool_omega = Model(inputs = siamese_net_omega.input, outputs = siamese_net_omega.layers[-4].output)
+
+	# # FLATTEN FEATURES
+	# pool_alpha = Model(inputs = siamese_net_alpha.input, outputs = siamese_net_alpha.layers[-2].output)
+	# pool_beta = Model(inputs = siamese_net_beta.input, outputs = siamese_net_beta.layers[-2].output)
+	# pool_omega = Model(inputs = siamese_net_omega.input, outputs = siamese_net_omega.layers[-2].output)
+
+	input_a = Input(shape=(3, 64, 64))
+	input_b = Input(shape=(3, 64, 64))
+	input_c = Input(shape=(3, 64, 64))
+
+	feature_a = pool_alpha(input_a)
+	feature_b = pool_beta(input_b)
+	feature_c = pool_omega(input_c)
+
+	# CONCATENATE FEATURES FOR REGRESSIONAL CALCULATION
+	features = Multiply()([feature_a, feature_b, feature_c])
+	concat = Flatten()(features)
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+
+
+	model = Model(inputs = [input_a, input_b, input_c], outputs = prediction)
+	plot_model(model, to_file = 'concat_multi_stream_pooled_siamese', show_shapes=True)
+	print(model.summary())
+
+	return model
+
+
+# multi_stream_cross_db_siamese_base_networks()
+# siamese_base()
 # siamese_shallow_alexnet_imagenet()
 # siamese_base()

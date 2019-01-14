@@ -693,6 +693,33 @@ def reverse_discretization(label, db='CASME'):
 
 	return label
 
+def load_combined_labels(path):
+	path = path + 'combined_3dbs.csv'
+	table = pd.read_table(path, sep=',', header=None, names=['db', 'sub', 'vid', 'class'])
+	
+	# table = table[['d''sub', 'vid', 'class']]
+	table = table.as_matrix()
+	pivoting = [0]
+	curr_db = table[0][0]
+	for counter in range(len(table)):
+		db = table[counter][0]
+		if db != curr_db:
+			pivoting += [counter]
+			curr_db = db
+
+
+	table = np.delete(table, 0, axis=1)
+	### HARD SEQUENCE: CASME --> SMIC --> SAMM
+	casme_table = table[pivoting[0]:pivoting[1], :]
+	smic_table = table[pivoting[1]:pivoting[2], :]
+	samm_table = table[pivoting[2]:, :]
+
+
+	return casme_table, samm_table, smic_table
+
+# load_combined_labels('/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/')	
+
+
 # from keras.applications.vgg16 import VGG16
 
 # from keras.layers.core import Dense

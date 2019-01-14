@@ -26,19 +26,24 @@ from keras import backend as K
 from keras.callbacks import EarlyStopping
 
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
-from utilities import class_merging, read_image, create_generator_LOSO, class_discretization, create_generator_nonLOSO
+from utilities import class_merging, read_image, create_generator_LOSO, class_discretization
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
-from siamese_models import siamese_vgg16_imagenet, siamese_res50_network, siamese_vgg16_crossdb_imagenet, siamese_base, siamese_shallow_alexnet_imagenet
-from siamese_models import create_siamese_pairs, feature_distance_loss, create_siamese_pairs_crossdb, create_siamese_pairs_triple_db
+from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
+from networks import test_res50_finetuned, test_vgg16_finetuned, test_inceptionv3_finetuned
+from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet, train_alexnet_imagenet, train_shallow_alexnet_imagenet
+from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
+from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
-from networks import train_vgg16_imagenet, train_res50_imagenet, train_inceptionv3_imagenet
 from utilities import epoch_analysis
+from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
+from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+from siamese_models import euclidean_distance_loss
 
 # TODO
 # function to create pairs ( think a bit first), true pair, false pair. NEED TO CREATE PAIRS
 
-def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
+def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
@@ -59,13 +64,28 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	elif feature_type == 'flow':
 		casme2_db = 'CASME2_Optical'
 		samm_db = 'SAMM_Optical'
-		smic_db = 'SMIC_Optical'
+		smic_db = 'SMIC_Optical_Christy'
 		timesteps_TIM = 1	
 	elif feature_type == 'flow_strain':
 		casme2_db = 'CASME2_Flow_Strain_Normalized'
-		samm_db = 'SAMM_Flow_Strain_Normalized'
-		smic_db = 'SMIC_Flow_Strain_Normalized'		
+		smic_db = 'SMIC_Flow_Strain_Christy'
 		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_224':
+		casme2_db = 'CASME2_Flow_OS_224'
+		timesteps_TIM = 1
+	elif feature_type == 'gray_weighted_flow':
+		casme2_db = 'CASME2_Optical_Gray_Weighted'
+		samm_db = 'SAMM_Optical_Gray_Weighted'
+		smic_db = 'SMIC_Optical_Gray_Weighted'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_major':
+		casme2_db = 'CASME2_Flow_Strain_major'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_minor':
+		casme2_db = 'CASME2_Flow_Strain_minor'
+		samm_db = 'SAMM_Flow_Strain_minor'
+		smic_db = 'SMIC_Flow_Strain_minor'
+		timesteps_TIM = 1	
 
 	classes = 3
 	spatial_size = spatial_size
@@ -92,24 +112,25 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 
 	# labels reading(casme)
 	casme2_table = loading_casme_table(root_dir, casme2_db)
+	# casme2_table = class_discretization(casme2_table, 'CASME_2')	
 	casme2_table = class_merging(casme2_table)
 	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
-	total_list = casme_list
-	total_labels = casme_labels
 
 
 	# labels reading(samm)
 	samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
+	# samm_table = class_discretization(samm_table, 'SAMM')	
 	samm_table = class_merging(samm_table)	
 	samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
-	total_aug_list = samm_list
-	total_aug_labels = samm_labels
+
 
 	# # labels reading(smic)
 	smic_table = loading_smic_table(root_dir, smic_db)
 	smic_table = smic_table[0]
 	smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
 
+	total_list = casme_list + samm_list + smic_list
+	total_labels = casme_labels + samm_labels + smic_labels
 
 
 	pred = []
@@ -154,65 +175,68 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		os.mkdir(weights_path) 
 
 	for sub in range(len(total_list)):
-
-
-		# model initialization for LOSO 
-		model = type_of_test()
-		# model = siamese_res50_network()
-		# model = siamese_base()
-
-		# Losses will be summed up
-		model.compile(loss=['categorical_crossentropy', 'categorical_crossentropy', feature_distance_loss], optimizer=sgd, metrics=[metrics.categorical_accuracy])
+		print(len(total_list))
+		print(len(total_labels))
+		# sub = sub + 13
+		# model
+		model = type_of_test(classes = classes, freeze_flag = freeze_flag)
+		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		f1_king = 0
-
-		# model.compile(loss=siamese_dual_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
-
-		loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
-		# loso_generator = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
-
-		# loso_generator_aug = create_generator_LOSO(samm_list, samm_labels, classes, sub, net, spatial_size = spatial_size, train_phase='svc')
-
-		loso_generator_aug = create_generator_nonLOSO(samm_list, samm_labels, classes, spatial_size = spatial_size, train_phase='train')
-		# loso_generator_aug = create_generator_nonLOSO(casme_list, casme_labels, classes, spatial_size = spatial_size, train_phase='train', net = net)
-
-		# load smic
-		loso_generator_smic = create_generator_nonLOSO(smic_list, smic_labels, classes, spatial_size = spatial_size, train_phase = 'train')
-
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
 			tot_mat = tot_mat_list[epoch_counter]
+			pred = pred_list[epoch_counter]
+			y_list = y_list_list[epoch_counter]
 			print("Current Training Epoch: " + str(epochs))
 
-			for (alpha, beta, omega) in zip(loso_generator, loso_generator_aug, loso_generator_smic):
-				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
-				X_aug, y_aug, non_binarized_y_aug = beta[0], beta[1], beta[2]
-				X_smic, y_smic, non_binarized_y_smic = omega[0], omega[1], omega[2]
-				pairs, labels_pairs = create_siamese_pairs_triple_db(X, X_aug, y, y_aug, X_smic, y_smic, undersampling_flag=True)
-				# pairs_samm, labels_pairs_samm =  create_siamese_pairs(X)
+			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
+			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-			regress_zero = np.zeros(shape = (labels_pairs[:, 0, :].shape[0], 1))	
+			for X, y, non_binarized_y in loso_generator:
 
-			plot_model(model, show_shapes=True, to_file='feature_robust_out_of_siamese.png')
-			# model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False)
-			model.fit([pairs[:, 0, :, :, :], pairs[:, 1, :, :, :]], [labels_pairs[:, 0, :], labels_pairs[:, 1, :], regress_zero], batch_size=batch_size, epochs=epochs, shuffle=False, callbacks=[history])
+				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+
+				# svm
+				if classifier_flag == 'svc':
+					if attention == True:
+						encoder = Model(inputs = model.input, outputs = model.get_layer('flatten').get_output_at(1))
+						# encoder = Model(inputs = model.input, outputs = model.layers[-7].get_output_at(1))
+						plot_model(encoder, to_file='encoder.png', show_shapes=True)
+					else:
+						encoder = Model(inputs = model.input, outputs = model.get_layer('flatten').output)
+						# encoder = Model(inputs = model.input, outputs = model.layers[-1].output)
+					spatial_features = encoder.predict(X, batch_size = batch_size)
+					if tf_backend_flag == True:
+						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
+
+					clf.fit(spatial_features, non_binarized_y)
 
 
+			
 
-			test_loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, net, spatial_size = spatial_size, train_phase = False)
+			# Resource Clear up
+			del X, y
+
+			# Test Time 
+			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
 			for X, y, non_binarized_y in test_loso_generator:
 				# Spatial Encoding
-				test_model = Model(inputs=model.layers[0].input, outputs=model.layers[3].output)
-				plot_model(test_model, to_file='test_stage', show_shapes=True)
-				predicted_class = test_model.predict(X, batch_size = batch_size)
-				predicted_class = np.argmax(predicted_class, axis=1)
-				if tf_backend_flag == True:
+				# svm
+				if classifier_flag == 'svc':
+					spatial_features = encoder.predict(X, batch_size = batch_size)
+					if tf_backend_flag == True:
+						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
+					predicted_class = clf.predict(spatial_features)
 
-					spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
+				# softmax
+				elif classifier_flag == 'softmax':
+					spatial_features = model.predict(X)
+					predicted_class = np.argmax(spatial_features, axis=1)
 
+				
 				non_binarized_y = non_binarized_y[0]
-				non_binarized_y = non_binarized_y[::timesteps_TIM]
 
 				print(predicted_class)
 				print(non_binarized_y)	
@@ -233,10 +257,11 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 				tot_mat = mat + tot_mat
 
 				[f1, precision, recall] = fpr(tot_mat, classes)
-				# file = open(root_dir + 'Classification/' + 'Result/'+ db + '/f1_' + str(train_id) +  '.txt', 'a')
-				# file.write(str(f1) + "\n")
-				# file.close()
-				total_samples += len(non_binarized_y)
+
+
+				if epoch_counter < 1:	 # avoid numerical problem
+					total_samples += len(non_binarized_y)
+
 				war = weighted_average_recall(tot_mat, classes, total_samples)
 				uar = unweighted_average_recall(tot_mat, classes)
 				macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
@@ -253,7 +278,6 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 				y_list_list[epoch_counter] = y_list
 
 			# save the maximum epoch only (replace with maximum f1)
-
 			if f1 > f1_king:
 				f1_king = f1
 				weights_name = weights_path + str(sub) + '.h5'
@@ -274,6 +298,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 		loss = loss_list[epoch_counter]
 		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
 
+		# print(tot_mat)
+
+
 
 	# print confusion matrix of highest f1
 	highest_idx = np.argmax(f1_list)
@@ -282,7 +309,15 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	print("Micro F1: " + str(f1_list[highest_idx]))
 	print("Macro F1: " + str(macro_f1_list[highest_idx]))
 	print("WAR: " + str(war_list[highest_idx]))
-	print("UAR: " + str(uar_list[highest_idx]))	
+	print("UAR: " + str(uar_list[highest_idx]))
+	f1 = str(f1_list[highest_idx])
+	war = str(war_list[highest_idx])
+	uar = str(uar_list[highest_idx])
+	tot_mat = tot_mat_list[highest_idx]
+	macro_f1 = str(macro_f1_list[highest_idx])
+
+
+	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
 def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 224, tf_backend_flag = False):
@@ -411,8 +446,15 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
 
-train(siamese_base, train_id='siamese_14', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False) 
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'shallow_alexnet_51_composite_flow', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None)
 
+print("RESULTS FOR alexnet")
+print("F1: " + str(f1))
+print("war: " + str(war))
+print("uar: " + str(uar))
+print("Macro_f1: " + str(macro_f1))
+print("Weighted_f1: " + str(weighted_f1))
+print(tot_mat)
 # train(siamese_vgg16_crossdb_imagenet, train_id='siamese_6', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False) 
 # train(siamese_base, train_id='siamese_7', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)
 # test(siamese_vgg16_imagenet, train_id='siamese_4', net = 'vgg', feature_type='grayscale', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False)class_

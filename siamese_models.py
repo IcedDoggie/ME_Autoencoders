@@ -26,8 +26,7 @@ from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras import backend as K
 from keras.layers.core import Dense
 from keras.callbacks import EarlyStopping
-from keras.layers import GlobalAveragePooling2D, Concatenate, Multiply
-from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add
+from keras.layers import GlobalAveragePooling2D, Concatenate
 
 from keras.losses import *
 from networks import train_shallow_alexnet_imagenet
@@ -38,6 +37,10 @@ def euclidean_distance(vects):
 	x, y = vects
 	sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
 	return K.sqrt(K.maximum(sum_square, K.epsilon()))
+
+def euclidean_distance_loss(y_true, y_pred):
+	sum_square = K.sum(K.square(y_true - y_pred), axis=1, keepdims=True)
+	return K.sqrt(K.maximum(sum_square, K.epsilon()))	
 
 def concat_feature(vects):
 	x1, x2 = vects
@@ -129,8 +132,7 @@ def create_siamese_pairs(X_ori, X_aug, y_ori, y_aug):
 	print(pairs.shape)
 	print(labels.shape)
 	return pairs, labels
-# {0: 4441, 1: 806, 2: 375}
-# {0: 8648, 1: 806, 2: 375}
+
 def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=False):
 	pairs = []
 	labels = []
@@ -139,11 +141,11 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=
 	print(X_ori.shape)
 	print(X_aug.shape)
 
-	# INITIAL Ratio
-	print("INITIAL RATIO")
-	y_ori_temp = np.argmax(y_ori, axis = 1)
-	unique, counts = np.unique(y_ori_temp, return_counts = True)
-	print(dict(zip(unique, counts)))
+	# # INITIAL Ratio
+	# print("INITIAL RATIO")
+	# y_ori_temp = np.argmax(y_ori, axis = 1)
+	# unique, counts = np.unique(y_ori_temp, return_counts = True)
+	# print(dict(zip(unique, counts)))
 
 	for img_counter in range(len(X_ori)):
 		curr_ori_img = X_ori[img_counter]
@@ -155,15 +157,22 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=
 			curr_aug_label = y_aug[sub_counter]
 			compare_param_aug = np.argmax(curr_aug_label)
 
+			####### undersampling ######
 			if undersampling_flag == True and compare_param_ori == 0:
 				random_num = randint(1, 100)
-				if random_num >= 75 and compare_param_ori == compare_param_aug:
+				if random_num >= 25 and compare_param_ori == compare_param_aug:
 					pairs += [[curr_ori_img, curr_aug_img]]
 					labels += [[curr_ori_label, curr_aug_label]]
 
 			elif compare_param_ori == compare_param_aug:
 				pairs += [[curr_ori_img, curr_aug_img]]
 				labels += [[curr_ori_label, curr_aug_label]]
+			#############################
+
+			if compare_param_ori == compare_param_aug:
+				pairs += [[curr_ori_img, curr_aug_img]]
+				labels += [[curr_ori_label, curr_aug_label]]
+
 				# print("matched!")
 				# print(curr_aug_label)
 				# print(curr_ori_label)
@@ -184,11 +193,58 @@ def create_siamese_pairs_crossdb(X_ori, X_aug, y_ori, y_aug, undersampling_flag=
 	# print(labels)
 	print(pairs.shape)
 	print(labels.shape)
-	return pairs, labels	
+	return pairs, labels
 		# print(curr_ori_label)
 
 	# print(y_ori)
 	# print(y_aug)
+
+def create_siamese_pairs_triple_db(X_ori, X_aug, y_ori, y_aug, X_smic, y_smic, undersampling_flag=False):
+	pairs = []
+	labels = []
+
+	# emotion based sampling
+	print(X_ori.shape)
+	print(X_aug.shape)
+
+	for img_counter in range(len(X_ori)):
+		curr_ori_img = X_ori[img_counter]
+		curr_ori_label = y_ori[img_counter]
+		compare_param_ori = np.argmax(curr_ori_label)
+
+		for sub_counter in range(len(X_aug)):
+			curr_aug_img = X_aug[sub_counter]
+			curr_aug_label = y_aug[sub_counter]
+			compare_param_aug = np.argmax(curr_aug_label)
+
+
+			if compare_param_ori == compare_param_aug:
+				pairs += [[curr_ori_img, curr_aug_img]]
+				labels += [[curr_ori_label, curr_aug_label]]
+
+
+		for sub_counter in range(len(X_smic)):
+			curr_aug_img = X_smic[sub_counter]
+			curr_aug_label = y_smic[sub_counter]
+			compare_param_aug = np.argmax(curr_aug_label)
+
+			if compare_param_ori == compare_param_aug:
+				pairs += [[curr_ori_img, curr_aug_img]]
+				labels += [[curr_ori_label, curr_aug_label]]
+
+	pairs = np.asarray(pairs)
+	labels = np.asarray(labels)
+
+
+
+	print("True Pairs Created ")
+	# print(pairs)
+	# print(labels)
+	print(pairs.shape)
+	print(labels.shape)
+
+	return pairs, labels
+
 
 def siamese_base_network(classes=5):
 	input_layer = Input(shape = (3, 64, 64))
@@ -213,28 +269,32 @@ def siamese_base(classes = 3):
 
 	auxiliary_output = Dense(classes, activation = 'softmax')
 	auxiliary_output_2 = Dense(classes, activation = 'softmax')
+	# auxiliary_output_3 = Dense(classes, activation = 'softmax')
 
 
 	plot_model(siamese_feat, to_file='siamese_feature_encoder.png', show_shapes=True)
 	input_a = Input(shape=(3, 64, 64))
 	input_b = Input(shape=(3, 64, 64))
+	# input_c = Input(shape=(3, 64, 64))
 
 	feature_a = siamese_feat(input_a)
 	feature_b = siamese_feat(input_b)	
+	# feature_c = siamese_feat(input_c)
+
 
 	softmax_a = auxiliary_output(feature_a)
 	softmax_b = auxiliary_output_2(feature_b)
+	# softmax_c = auxiliary_output_3(feature_c)
 
 
 	# concat feature a and b
 	features = Concatenate(axis=-1)([feature_a, feature_b])
 	siamese = Model(inputs = [input_a, input_b], outputs = [softmax_a, softmax_b, features])	
 
-	# plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
-	# print(siamese.summary())
-
-	# plot_model(siamese_net, to_file='siamese_base_net.png', show_shapes=True)
-	# print(siamese_net.summary())		
+	plot_model(siamese, to_file='siamese_base.png', show_shapes=True)
+	print("MileStone #2")
+	print(siamese.summary())
+		
 
 	return siamese	
 
@@ -426,50 +486,3 @@ def siamese_shallow_alexnet_imagenet(classes = 3):
 		
 
 	return alexnet	
-
-
-def multi_stream_cross_db_siamese_base_networks(classes = 3):
-	siamese_net_alpha = siamese_base_network()
-	siamese_net_beta = siamese_base_network()
-	siamese_net_omega = siamese_base_network()
-
-	# feature encoder layer
-	# POOLED FEATURES
-	pool_alpha = Model(inputs = siamese_net_alpha.input, outputs = siamese_net_alpha.layers[-4].output)
-	pool_beta = Model(inputs = siamese_net_beta.input, outputs = siamese_net_beta.layers[-4].output)
-	pool_omega = Model(inputs = siamese_net_omega.input, outputs = siamese_net_omega.layers[-4].output)
-
-	# # FLATTEN FEATURES
-	# pool_alpha = Model(inputs = siamese_net_alpha.input, outputs = siamese_net_alpha.layers[-2].output)
-	# pool_beta = Model(inputs = siamese_net_beta.input, outputs = siamese_net_beta.layers[-2].output)
-	# pool_omega = Model(inputs = siamese_net_omega.input, outputs = siamese_net_omega.layers[-2].output)
-
-	input_a = Input(shape=(3, 64, 64))
-	input_b = Input(shape=(3, 64, 64))
-	input_c = Input(shape=(3, 64, 64))
-
-	feature_a = pool_alpha(input_a)
-	feature_b = pool_beta(input_b)
-	feature_c = pool_omega(input_c)
-
-	# CONCATENATE FEATURES FOR REGRESSIONAL CALCULATION
-	features = Multiply()([feature_a, feature_b, feature_c])
-	concat = Flatten()(features)
-	dropout = Dropout(0.5)(concat)
-
-	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
-	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
-
-
-
-	model = Model(inputs = [input_a, input_b, input_c], outputs = prediction)
-	plot_model(model, to_file = 'concat_multi_stream_pooled_siamese', show_shapes=True)
-	print(model.summary())
-
-	return model
-
-
-# multi_stream_cross_db_siamese_base_networks()
-# siamese_base()
-# siamese_shallow_alexnet_imagenet()
-# siamese_base()

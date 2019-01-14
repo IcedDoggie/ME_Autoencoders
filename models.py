@@ -217,6 +217,8 @@ def alexnet(input_shape, nb_classes, mean_flag):
 	
 	return alexnet
 
+
+
 def tensor_reshape(x):
 	# print("Tensor Reshape")
 	# print(K.int_shape(x))
@@ -259,6 +261,14 @@ def l2_normalize(x):
 def l2_normalize_output_shape(input_shape):
 
 	return (input_shape[0], input_shape[1])
+
+def repeat_element_autofeat(x):
+	reshape_feat = K.repeat_elements(x, rep = 256, axis = 1)
+
+	return reshape_feat
+
+
+
 # model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
 # model = Model(inputs = model.input, outputs = model.layers[-22].output)
 # print(model.summary())

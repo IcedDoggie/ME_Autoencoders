@@ -9,17 +9,19 @@ from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_re
 
 # filename = 'casme2_lbptopR114_N4_noTIM.mat'
 # filename = 'casme2_lbptopR114_N4_noTIM_flow.mat'
-# filename = 'casme2_lbptopR114_N4_noTIM_ALL_DATA.mat'
-filename = 'casme2_lbptopR114_N4_noTIM_SAMM.mat'
+# filename = 'SMIC_classes_lbptopR114_N4_TIM10.mat'
+filename = 'SAMM5_classes_lbptopR114_N4_TIM10.mat'
 # filename = 'casme2_lbptopR114_N4_noTIM_SMIC.mat'
 # filename = 'casme2_lbptopR114_N4_noTIM_CASME.mat'
+# filename = 'CASME2_5classes_lbptopR114_N4_TIM10.mat'
 
 # csv_label = 'combined_3dbs.csv'
 # csv_label = 'casme_3_db.txt'
 csv_label = 'samm_3_db.txt'
+# csv_label = 'casme2_5classes.txt'
 # csv_label = 'smic_3_db.txt'
 
-classes = 3
+classes = 5
 features_arr = []
 vid_name_arr = []
 labels_arr = []
@@ -33,9 +35,9 @@ labels = table[['label']].as_matrix()
 table = scipy.io.loadmat(filename)
 feats = table['feats']
 ids = table['ids']
-# check_entry = 'sub01'
+check_entry = 'sub01'
 # check_entry = 's01'
-check_entry = '006'
+# check_entry = '006'
 temp_array_for_loso = []
 temp_feat_for_loso = []
 labels_for_loso = []
@@ -71,6 +73,7 @@ labels_arr += [labels_for_loso]
 vid_name_arr = np.asarray(vid_name_arr)
 features_arr = np.asarray(features_arr)	
 labels_arr = np.asarray(labels_arr)
+print(vid_name_arr)
 print(vid_name_arr.shape)
 print(features_arr.shape)
 print(labels_arr.shape)
@@ -79,18 +82,18 @@ print(labels_arr.shape)
 
 tot_mat = np.zeros((classes, classes))
 total_samples = 0
-clf = SVC(kernel = 'linear', C = 10000, decision_function_shape='ovr')
+clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 pred = []
 y_list = []
 
 ############# for separate db evaluation ##############
 casme_results = np.zeros((classes, classes))
-casme_samples = 145
+casme_samples = 246
 casme_pred = []
 casme_y_list = []
 
 samm_results = np.zeros((classes, classes))
-samm_samples = 133
+samm_samples = 136
 samm_pred = []
 samm_y_list = []
 
@@ -99,7 +102,7 @@ smic_samples = 164
 smic_pred = []
 smic_y_list = []
 
-sep_flag = False
+sep_flag = True
 #######################################################
 
 # print(vid_name_arr)
@@ -170,18 +173,18 @@ for sub in range(len(features_arr)):
 	# print(samm_results)
 	
 
-# [f1, precision, recall] = fpr(casme_results, classes)
-# war = weighted_average_recall(casme_results, classes, casme_samples)
-# uar = unweighted_average_recall(casme_results, classes)
-# macro_f1, weighted_f1 = sklearn_macro_f1(casme_y_list, casme_pred)
+[f1, precision, recall] = fpr(casme_results, classes)
+war = weighted_average_recall(casme_results, classes, casme_samples)
+uar = unweighted_average_recall(casme_results, classes)
+macro_f1, weighted_f1 = sklearn_macro_f1(casme_y_list, casme_pred)
 
-# print("CASME II")
-# print(casme_results)
-# print("F1: " + str(f1))
-# print("war: " + str(war))
-# print("uar: " + str(uar))
-# print("Macro_f1: " + str(macro_f1))
-# print("Weighted_f1: " + str(weighted_f1))
+print("CASME II")
+print(casme_results)
+print("F1: " + str(f1))
+print("war: " + str(war))
+print("uar: " + str(uar))
+print("Macro_f1: " + str(macro_f1))
+print("Weighted_f1: " + str(weighted_f1))
 
 # [f1, precision, recall] = fpr(smic_results, classes)
 # war = weighted_average_recall(smic_results, classes, smic_samples)
@@ -211,10 +214,10 @@ for sub in range(len(features_arr)):
 
 
 
-print("ALL")
-print(tot_mat)
-print("F1: " + str(f1))
-print("war: " + str(war))
-print("uar: " + str(uar))
-print("Macro_f1: " + str(macro_f1))
-print("Weighted_f1: " + str(weighted_f1))
+# print("ALL")
+# print(tot_mat)
+# print("F1: " + str(f1))
+# print("war: " + str(war))
+# print("uar: " + str(uar))
+# print("Macro_f1: " + str(macro_f1))
+# print("Weighted_f1: " + str(weighted_f1))

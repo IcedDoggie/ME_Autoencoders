@@ -36,16 +36,17 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged
-from networks import train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
+from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+from siamese_models import euclidean_distance_loss
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/ice/Documents/ME_Autoencoders/'
-	root_dir = '/media/ice/OS/Datasets/' + db + '/'
-	weights_path = '/media/ice/OS/Datasets/'
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -59,56 +60,109 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	elif feature_type == 'flow':
 		casme2_db = 'CASME2_Optical'
 		samm_db = 'SAMM_Optical'
-		smic_db = 'SMIC_Optical'
+		smic_db = 'SMIC_Optical_Christy'
 		timesteps_TIM = 1	
 	elif feature_type == 'flow_strain':
 		casme2_db = 'CASME2_Flow_Strain_Normalized'
+		smic_db = 'SMIC_Flow_Strain_Christy'
 		timesteps_TIM = 1
 	elif feature_type == 'flow_strain_224':
 		casme2_db = 'CASME2_Flow_OS_224'
 		timesteps_TIM = 1
+	elif feature_type == 'gray_weighted_flow':
+		casme2_db = 'CASME2_Optical_Gray_Weighted'
+		samm_db = 'SAMM_Optical_Gray_Weighted'
+		smic_db = 'SMIC_Optical_Gray_Weighted'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_major':
+		casme2_db = 'CASME2_Flow_Strain_major'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_minor':
+		casme2_db = 'CASME2_Flow_Strain_minor'
+		samm_db = 'SAMM_Flow_Strain_minor'
+		smic_db = 'SMIC_Flow_Strain_minor'
+		timesteps_TIM = 1		
 
-	classes = 5
+	classes = classes
 	spatial_size = spatial_size
-	channels = 3
+	channels = 5
 	data_dim = 4096
 	# tot_mat = np.zeros((classes, classes))
 
 	# labels reading
 	casme2_table = loading_casme_table(root_dir, casme2_db)
-	# samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
-	# smic_table = loading_smic_table(root_dir, smic_db)
-	casme2_table = class_discretization(casme2_table, 'CASME_2')
-	# samm_table = class_discretization(samm_table, 'SAMM')
-	# smic_table = smic_table[0]
+	casme2_table = class_discretization(casme2_table, 'CASME_2')	
+	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
+
+	# # temporarily using casme as variable for easy
+	# casme2_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
+	# casme2_table = class_discretization(casme2_table, 'SAMM')	
+	# casme_list, casme_labels = read_image(root_dir, samm_db, casme2_table)
+
+	# # temporarily using casme as variable for easy
+	# casme2_table = loading_smic_table(root_dir, smic_db)
+	# casme2_table = casme2_table[0]
+	# casme_list, casme_labels = read_image(root_dir, smic_db, casme2_table)
 
 
 
 	# images reading, read according to table
-	# samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
-	# smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
 	# print(casme2_table)
-	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
 
 	# total_list = samm_list + smic_list + casme_list
 	# total_labels = samm_labels + smic_labels + casme_labels
 	total_list = casme_list
 	total_labels = casme_labels
 
-	# MULTI STREAM SETTINGS
-	sec_db = 'CASME2_TIM10'
+	# MULTI STREAM SETTINGS (TRI STREAM)
+	sec_db = 'CASME2_Optical_Gray_Weighted'
 	casme2_2 = loading_casme_table(root_dir, sec_db)
 	casme2_2 = class_discretization(casme2_2, 'CASME_2')
 	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
 
-	third_db = 'CASME2_Flow_Strain_Normalized'
-	casme2_3 = loading_casme_table(root_dir, third_db)
-	casme2_3 = class_discretization(casme2_3, 'CASME_2')
-	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+	# third_db = 'CASME2_Optical_Gray_Weighted'
+	# casme2_3 = loading_casme_table(root_dir, third_db)
+	# casme2_3 = class_discretization(casme2_3, 'CASME_2')
+	# casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+
+	# # # MULTI STREAM SETTINGS (TRI STREAM)
+	# sec_db = 'SAMM_Flow_Strain_minor'
+	# casme2_2, _ = loading_samm_table(root_dir, sec_db, objective_flag=0)
+	# casme2_2 = class_discretization(casme2_2, 'SAMM')	
+	# casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+
+	# third_db = 'SAMM_Optical_Gray_Weighted'
+	# casme2_3, _ = loading_samm_table(root_dir, third_db, objective_flag=0)
+	# casme2_3 = class_discretization(casme2_3, 'SAMM')	
+	# casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+
+	# # MULTI STREAM SETTINGS (TRI STREAM)
+	# sec_db = 'SMIC_Flow_Strain_minor'
+	# casme2_2 = loading_smic_table(root_dir, sec_db)
+	# casme2_2 = casme2_2[0]
+	# casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+
+	# third_db = 'SMIC_Optical_Gray_Weighted'
+	# casme2_3 = loading_smic_table(root_dir, third_db)
+	# casme2_3 = casme2_3[0]
+	# casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+
+	# # DUAL STREAM SETTINGS
+	# sec_db = 'SMIC_Flow_Strain_Christy'
+	# casme2_2 = loading_smic_table(root_dir, sec_db)
+	# casme2_2 = casme2_2[0]
+	# casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+
+	# # DUAL STREAM SETTINGS
+	# sec_db = 'SAMM_Flow_Strain_minor'
+	# casme2_2, _ = loading_samm_table(root_dir, sec_db, objective_flag=0)
+	# casme2_2 = class_discretization(casme2_2, 'SAMM')	
+	# casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+
 
 
 	# training configuration
-	learning_rate = 0.001
+	learning_rate = 0.0001
 	history = LossHistory()	
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
@@ -149,8 +203,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	for sub in range(len(total_list)):
 		# model
 		model = type_of_test(classes = classes, freeze_flag = freeze_flag)
-		# model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
-		model.compile(loss=['categorical_crossentropy', 'mean_squared_error'], optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		# model.compile(loss=['categorical_crossentropy', euclidean_distance_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
+
 
 		f1_king = 0
 		# epoch by epoch
@@ -163,15 +218,21 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 			loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 			loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
-			loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			# loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-			for (alpha, beta, omega) in zip(loso_generator, loso_generator_2, loso_generator_3):
+			# for (alpha, beta, omega) in zip(loso_generator, loso_generator_2, loso_generator_3):
+			# 	X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+			# 	X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
+			# 	X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]
+
+			for (alpha, beta) in zip(loso_generator, loso_generator_2):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
-				X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]
+
+				model.fit([X, X_2], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				# model.fit([X, X_2, X_3], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
-				model.fit([X, X_2, X_3], [y, X_2], batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				# model.fit([X, X_2, X_3], [y, X_2], batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				# svm
 				if classifier_flag == 'svc':
@@ -197,12 +258,16 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			# Test Time 
 			test_loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 			test_loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
-			test_loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			# test_loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
-			for (alpha, beta, omega) in zip(test_loso_generator, test_loso_generator_2, test_loso_generator_3):
+			# for (alpha, beta, omega) in zip(test_loso_generator, test_loso_generator_2, test_loso_generator_3):
+			# 	X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+			# 	X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]	
+			# 	X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]				
+	
+			for (alpha, beta) in zip(test_loso_generator, test_loso_generator_2):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]	
-				X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]				
 
 				# Spatial Encoding
 				# svm
@@ -212,9 +277,13 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
 					predicted_class = clf.predict(spatial_features)
 
+				# # softmax
+				# elif classifier_flag == 'softmax':
+				# 	spatial_features = model.predict([X, X_2, X_3])
+				# 	predicted_class = np.argmax(spatial_features, axis=1)
 				# softmax
 				elif classifier_flag == 'softmax':
-					spatial_features = model.predict([X, X_2, X_3])
+					spatial_features = model.predict([X, X_2])
 					predicted_class = np.argmax(spatial_features, axis=1)
 
 				non_binarized_y = non_binarized_y[0]
@@ -459,7 +528,8 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_tri_stream_shallow_alexnet_pooling_merged_latent_features, 'test', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+# f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_31J_MULTIPLY_2FC', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

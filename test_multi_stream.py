@@ -60,14 +60,28 @@ def test(type_of_test, train_id, preprocessing_type, classes=5, feature_type = '
 	elif feature_type == 'flow':
 		casme2_db = 'CASME2_Optical'
 		samm_db = 'SAMM_Optical'
-		smic_db = 'SMIC_Optical'
+		smic_db = 'SMIC_Optical_Christy'
 		timesteps_TIM = 1	
 	elif feature_type == 'flow_strain':
 		casme2_db = 'CASME2_Flow_Strain_Normalized'
+		smic_db = 'SMIC_Flow_Strain_Christy'
 		timesteps_TIM = 1
 	elif feature_type == 'flow_strain_224':
 		casme2_db = 'CASME2_Flow_OS_224'
 		timesteps_TIM = 1
+	elif feature_type == 'gray_weighted_flow':
+		casme2_db = 'CASME2_Optical_Gray_Weighted'
+		samm_db = 'SAMM_Optical_Gray_Weighted'
+		smic_db = 'SMIC_Optical_Gray_Weighted'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_major':
+		casme2_db = 'CASME2_Flow_Strain_major'
+		timesteps_TIM = 1
+	elif feature_type == 'flow_strain_minor':
+		casme2_db = 'CASME2_Flow_Strain_minor'
+		samm_db = 'SAMM_Flow_Strain_minor'
+		smic_db = 'SMIC_Flow_Strain_minor'
+		timesteps_TIM = 1	
 
 	classes = 5
 	spatial_size = spatial_size
@@ -76,20 +90,20 @@ def test(type_of_test, train_id, preprocessing_type, classes=5, feature_type = '
 	# tot_mat = np.zeros((classes, classes))
 
 	# labels reading
-	casme2_table = loading_casme_table(root_dir, casme2_db)
-	# samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
+	# casme2_table = loading_casme_table(root_dir, casme2_db)
+	samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
 	# smic_table = loading_smic_table(root_dir, smic_db)
-	casme2_table = class_discretization(casme2_table, 'CASME_2')
-	# samm_table = class_discretization(samm_table, 'SAMM')
+	# casme2_table = class_discretization(casme2_table, 'CASME_2')
+	samm_table = class_discretization(samm_table, 'SAMM')
 	# smic_table = smic_table[0]
 
 
 
 	# images reading, read according to table
-	# samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
+	casme_list, casme_labels = read_image(root_dir, samm_db, samm_table)
 	# smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
 	# print(casme2_table)
-	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
+	# casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
 
 	# total_list = samm_list + smic_list + casme_list
 	# total_labels = samm_labels + smic_labels + casme_labels
@@ -97,15 +111,15 @@ def test(type_of_test, train_id, preprocessing_type, classes=5, feature_type = '
 	total_labels = casme_labels
 
 	# MULTI STREAM SETTINGS
-	sec_db = 'CASME2_Optical_Gray_Weighted'
-	casme2_2 = loading_casme_table(root_dir, sec_db)
-	casme2_2 = class_discretization(casme2_2, 'CASME_2')
+	sec_db = 'SAMM_Optical_Gray_Weighted'
+	casme2_2, _ = loading_samm_table(root_dir, sec_db, objective_flag=0)
+	casme2_2 = class_discretization(casme2_2, 'SAMM')	
 	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
-
-	third_db = 'CASME2_Flow_Strain_Normalized'
-	casme2_3 = loading_casme_table(root_dir, third_db)
-	casme2_3 = class_discretization(casme2_3, 'CASME_2')
-	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+	
+	# third_db = 'CASME2_Flow_Strain_Normalized'
+	# casme2_3 = loading_casme_table(root_dir, third_db)
+	# casme2_3 = class_discretization(casme2_3, 'CASME_2')
+	# casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
 
 
 	# training configuration
@@ -114,7 +128,7 @@ def test(type_of_test, train_id, preprocessing_type, classes=5, feature_type = '
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 5
+	batch_size  = 1
 	epochs = 1
 	total_samples = 0
 
@@ -218,10 +232,10 @@ def test(type_of_test, train_id, preprocessing_type, classes=5, feature_type = '
 	print("WAR: " + str(war))
 	print("UAR: " + str(uar))
 
-	classes = ['happiness', 'disgust', 'repression', 'surprise', 'others']
+	classes = ['anger', 'happiness', 'contempt', 'surprise', 'other']
 	plot_confusion_matrix(tot_mat, classes)
 
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_31J', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  test(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)

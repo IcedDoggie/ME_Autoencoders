@@ -43,6 +43,7 @@ from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormaliza
 from theano import tensor as T
 from keras.layers import Multiply, Concatenate, Add
 
+
 from utilities import loading_smic_table, loading_samm_table, loading_casme_table
 from utilities import class_merging, read_image, create_generator_LOSO
 from utilities import LossHistory, record_loss_accuracy
@@ -299,22 +300,22 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	model.load_weights('alexnet_weights.h5')
 
 	# modify architecture
-	# ##################### Ori #####################
-	# last_conv_1 = model.layers[5].output
-	# conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(last_conv_1)
-	# conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
-	# conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
-	# conv_2 = ZeroPadding2D((2,2))(conv_2)
+	##################### Ori #####################
+	last_conv_1 = model.layers[5].output
+	conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(last_conv_1)
+	conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
+	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
 
-	# conv_2 = Flatten(name="flatten")(conv_2)
-	# conv_2 = Dropout(0.5)(conv_2)
-	# ##############################################
-
-	################# Use 2 conv with weights ######################
-	conv_2 = model.layers[13].output
-	conv_2 = Flatten(name = 'flatten')(conv_2)
+	conv_2 = Flatten(name="flatten")(conv_2)
 	conv_2 = Dropout(0.5)(conv_2)
-	################################################################
+	##############################################
+
+	# ################# Use 2 conv with weights ######################
+	# conv_2 = model.layers[13].output
+	# conv_2 = Flatten(name = 'flatten')(conv_2)
+	# conv_2 = Dropout(0.5)(conv_2)
+	# ################################################################
 
 	# ##### FC for experiments #####
 	# fc_1 = Dense(4096, activation='relu', name='fc_1', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)
@@ -473,10 +474,10 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 	#concat = Lambda(l2_normalize, output_shape=l2_normalize_output_shape)(concat)
 	dropout = Dropout(0.5)(concat)
 
-	fc_1 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(dropout)
-	fc_2 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(fc_1)
+	# fc_1 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(dropout)
+	# fc_2 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(fc_1)
 
-	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(fc_2)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
 	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
 
 
@@ -735,15 +736,15 @@ def train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion(classes=5, freez
 
 
 	return model
-	# train_alexnet_imagenet()
-# train_shallow_alexnet_imagenet()
-# model = train_shallow_alexnet_imagenet()
-# model = Model(inputs = model.input, outputs = model.layers[-2].output)
-# plot_model(model, to_file ='check_alex.png', show_shapes = True)
-# model = alexnet(input_shape = (3, 227, 227), nb_classes = 5, mean_flag = True)
-# plot_model(model, to_file = 'alexnet', show_shapes = True)
-# model.load_weights('alexnet_weights.h5')
 
-# train_res50_imagenet()
-# train_vgg16_imagenet()
-# train_inceptionv3_imagenet()
+def temporal_module(data_dim, timesteps_TIM, classes, weights_path=None):
+	model = Sequential()
+	model.add(LSTM(3000, return_sequences=False, input_shape=(timesteps_TIM, data_dim)))
+	#model.add(LSTM(3000, return_sequences=False))
+	model.add(Dense(128, activation='relu'))
+	model.add(Dense(classes, activation='sigmoid'))
+
+	if weights_path:
+		model.load_weights(weights_path)
+
+	return model		

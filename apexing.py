@@ -260,6 +260,7 @@ def get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_
 				temp_onset = 'img' + temp_onset
 
 		# adding zeros for file less than 100
+		# print(temp_apex)
 		if add_zero_flag == True:
 			if int(temp_apex) < 10:
 				temp_apex = '00' + str(temp_apex)
@@ -407,10 +408,10 @@ def smic_apexing(path, out, ori_path, ori_img_list):
 
 				
 # def copy_onset_apex_images():
-image_path = '/media/ice/OS/Datasets/Cropped_SAMM/'
-label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
-new_dir_path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/'
-objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
+image_path = '/media/ice/OS/Datasets/CASME2_Cropped/'
+label_file = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_TIM10/CASME2_label_Ver_2.xls'
+new_dir_path = '/media/ice/OS/Datasets/test/CASME2_CROPPED_APEX/'
+# objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xlsx'
 
 
 
@@ -425,6 +426,14 @@ objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xls
 # create_dir_samm(new_dir_path, image_path, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex/SAMM_TIM10/SAMM_TIM10/')
 # copy_apex_images(image_path, new_dir_path, image_list, original_str='SAMM/SAMM/', new_str='Combined_Dataset_Apex/SAMM_TIM10/SAMM_TIM10/')
 
+
+# Onset and Apex (CASME_cropped_original)
+filtered_table = read_label_onset_apex(label_file)
+image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_flag=False, add_zero_flag = True, samm_flag=False)
+create_dir(new_dir_path, image_path, original_str='CASME2_Cropped/', new_str='test/CASME2_CROPPED_APEX/')
+copy_apex_images(image_path, new_dir_path, image_list, original_str='CASME2_Cropped/', new_str='test/CASME2_CROPPED_APEX/')
+copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='CASME2_Cropped/', new_str='test/CASME2_CROPPED_APEX/')
+
 # # Onset and Apex (CASME)
 # filtered_table = read_label_onset_apex(label_file)
 # image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=True, add_img_flag=True, add_zero_flag = False, samm_flag=False)
@@ -432,18 +441,18 @@ objective_label_file = '/media/ice/OS/Datasets/SAMM/SAMM_Micro_FACS_Codes_v2.xls
 # copy_apex_images(image_path, new_dir_path, image_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
 # copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='CASME2_APEX/CASME2_ORI/', new_str='Combined_Dataset_Apex_Flow/CASME2_CROPPED_APEX/')
 
-# Onset and Apex (SAMM)
-# /media/ice/OS/Datasets/SAMM/SAMM
-filtered_table = read_label_onset_apex(label_file)
-image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=False, add_img_flag=False, add_zero_flag = False, samm_flag=True)
-create_dir_samm(new_dir_path, image_path, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
-copy_apex_images(image_path, new_dir_path, image_list, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
-copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+# # Onset and Apex (SAMM)
+# # /media/ice/OS/Datasets/SAMM/SAMM
+# filtered_table = read_label_onset_apex(label_file)
+# image_list, image_onset_list = get_image_onset_apex(image_path, filtered_table, add_sub_flag=False, add_img_flag=False, add_zero_flag = False, samm_flag=True)
+# create_dir_samm(new_dir_path, image_path, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_list, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
+# copy_apex_images(image_path, new_dir_path, image_onset_list, original_str='Cropped_SAMM/', new_str='Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/')
 
 
-# rename the files to pass to tvl1flow computation, making life easier
-path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/'
-rename_files_for_flow_compute(path)
+# # rename the files to pass to tvl1flow computation, making life easier
+# path = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/'
+# rename_files_for_flow_compute(path)
 
 # Onset and Apex (SMIC)
 # path = '/media/ice/OS/Datasets/SMIC/SMIC/HS/'

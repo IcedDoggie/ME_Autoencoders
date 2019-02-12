@@ -52,7 +52,7 @@ from vis import visualization as vi
 from vis.utils import utils 
 
 from networks import train_shallow_alexnet_imagenet, train_dual_stream_shallow_alexnet
-from utilities import loading_casme_table, class_discretization, read_image, create_generator_LOSO
+from utilities import loading_casme_table, class_discretization, read_image, create_generator_LOSO, loading_samm_table
 from utilities import reverse_discretization
 def plot_confusion_matrix(cm, classes,
 						  normalize=True,
@@ -275,6 +275,8 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 
 	# get subject and vid identity
 	for root, folders, files in os.walk(ori_img_path):
+		# print(root)
+		
 		if len(root) > 85:
 			# print(root)
 
@@ -328,17 +330,25 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 				plot_model(model_mag, show_shapes = True, to_file = 'model_mag_extract')
 				plot_model(model_strain, show_shapes = True, to_file = 'model_strain_extract')
 
-				print(model_mag.inputs)
-				print(model_strain.inputs)
+
 				layer_idx = utils.find_layer_idx(model, 'softmax_activate')
-				print(pen_mag)
-				print(layer_idx)
 
+				print("pen mag: " + str(pen_mag))
+				print("pen strain: " + str(pen_strain))
+				print("layer idx: " + str(layer_idx))
 
-				cam = vi.visualize_cam(model_mag, layer_idx=layer_idx, filter_indices=predict, seed_input=input_img, penultimate_layer_idx=pen_mag, \
+				# print(model_mag.layers[11])
+				# print(model_mag.layers[13])
+
+				cam = vi.visualize_cam(model_mag, layer_idx=9, filter_indices=None, seed_input=input_img, penultimate_layer_idx=7, \
 					backprop_modifier=None, grad_modifier=None)
-				cam2 = vi.visualize_cam(model_strain, layer_idx=layer_idx, filter_indices=predict, seed_input=input_img2, penultimate_layer_idx=pen_strain, \
+				cam2 = vi.visualize_cam(model_strain, layer_idx=9, filter_indices=None, seed_input=input_img2, penultimate_layer_idx=7, \
 					backprop_modifier=None, grad_modifier=None)
+
+				# cam = vi.visualize_saliency(model_mag, layer_idx=10, filter_indices=predict, seed_input=input_img, \
+				# 	backprop_modifier=None, grad_modifier='absolute')
+				# cam2 = vi.visualize_saliency(model, layer_idx=layer_idx, filter_indices=None, seed_input=input_img2, \
+				# 	backprop_modifier=None, grad_modifier=None)
 
 				# reshape operation
 				input_img = input_img.reshape((input_img.shape[1], input_img.shape[2], input_img.shape[3]))
@@ -369,6 +379,7 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 				print(input_img.shape)
 				txt_X = 0
 				txt_Y = 60
+
 				# Reverse Discretization
 				predict = reverse_discretization(predict[0])
 				label = reverse_discretization(non_binarized_y[img_counter])
@@ -390,15 +401,29 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 				# axes[5].imshow(input_img)
 
 
-				# # # FOR COMPO
-				# plt.imshow(vi.overlay(fused_cam, gray_img))
+				# # FOR COMPO
+				plt.imshow(vi.overlay(fused_cam, gray_img))
+
+				plt.tick_params(
+					axis='both',          # changes apply to the x-axis
+					which='both',      # both major and minor ticks are affected
+					bottom=False,      # ticks along the bottom edge are off
+					top=False,         # ticks along the top edge are off
+					left=False,
+					right=False,
+					labelleft=False,
+					labelbottom=False,) # labels along the bottom edge are off
+
+
+				identity_str = identity_str + "_predict_" + predict + "_label_" + label
+				save_str = '/media/ice/OS/Datasets/Visualizations/GRAD_shallow_alexnet_multi_38/' + identity_str + '.png'
+				plt.savefig(save_str, bbox_inches='tight', pad_inches=0)
 
 				# FOR CAM AND CAM2
 				plt.imshow(vi.overlay(cam, gray_img))
 
 
 
-				# plt.imshow(vi.overlay(cam, gray_img))	
 				plt.tick_params(
 					axis='both',          # changes apply to the x-axis
 					which='both',      # both major and minor ticks are affected
@@ -416,7 +441,7 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 				# 	ax.grid(False)
 
 				identity_str = identity_str + "_predict_" + predict + "_label_" + label
-				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_shallow_alexnet_multi_31J_MULTIPLY/' + identity_str + '.png'
+				save_str = '/media/ice/OS/Datasets/Visualizations/GRAD_shallow_alexnet_multi_38_1/' + identity_str + '.png'
 				plt.savefig(save_str, bbox_inches='tight', pad_inches=0)
 
 				plt.imshow(vi.overlay(cam2, gray_img))
@@ -429,7 +454,7 @@ def visualize_class_activation_maps_dual_stream(weights_path, model, designated_
 					right=False,
 					labelleft=False,
 					labelbottom=False,) # labels along the bottom edge are off
-				save_str = '/media/ice/OS/Datasets/Visualizations/CAM_shallow_alexnet_multi_31J_MULTIPLY_2/' + identity_str + '.png'
+				save_str = '/media/ice/OS/Datasets/Visualizations/GRAD_shallow_alexnet_multi_38_2/' + identity_str + '.png'
 				plt.savefig(save_str, bbox_inches='tight', pad_inches=0)
 
 				print(str(img_counter) + ' / ' + str(len(predicted_labels)))
@@ -565,6 +590,13 @@ def img_label_loading(root_dir, db_type):
 
 	return casme_list, casme_labels
 
+def img_label_loading_samm(root_dir, db_type):
+	casme2_table, _ = loading_samm_table(root_dir, db_type, objective_flag=0)
+	casme2_table = class_discretization(casme2_table, 'SAMM')	
+	casme_list, casme_labels = read_image(root_dir, db_type, casme2_table)
+
+	return casme_list, casme_labels
+
 # def restructure_dual_stream(model):
 # 	# model = Model( inputs = model.get_layer('input_1').get_output_at(0), outputs = model.get_layer('model_5').output )
 # 	plot_model(model, to_file = 'restrcture.png', show_shapes=True)
@@ -587,23 +619,29 @@ def img_label_loading(root_dir, db_type):
 # train_id = 'siamese_9'
 # plot_scores_and_losses(result_path, train_id, range_len = 80)
 
-##### Simple call to visualize simple cam #####
-weights_path = '/media/ice/OS/Datasets/Weights/shallow_alexnet_multi_31J_MULTIPLY/'
-# weights_path = '/media/ice/OS/Datasets/Weights/shallow_alexnet_50/'
-feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Optical/'
-# feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Optical_Gray_Weighted/'
-root_dir = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
-ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex/'
-model = train_dual_stream_shallow_alexnet(classes=5)
-# model = train_shallow_alexnet_imagenet(classes=5)
-casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Optical')
-casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
+# ##### Simple call to visualize simple cam #####
+# weights_path = '/media/ice/OS/Datasets/Weights/shallow_alexnet_multi_38/'
+# # weights_path = '/media/ice/OS/Datasets/Weights/shallow_alexnet_50/'
+# feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_Optical/'
+# # feature_used = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_Optical_Gray_Weighted/'
+# root_dir = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
+# ori_img = '/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/'
+# model = train_dual_stream_shallow_alexnet(classes=5)
+# # model = train_shallow_alexnet_imagenet(classes=5)
 
-casme2_list, casme2_labels = img_label_loading(root_dir, 'CASME2_Optical_Gray_Weighted')
+# # # FOR CASME
+# # casme_list, casme_labels = img_label_loading(root_dir, 'CASME2_Optical')
+# # casme_ori, _ = img_label_loading(ori_img, 'CASME2_TIM10')
+# # casme2_list, casme2_labels = img_label_loading(root_dir, 'CASME2_Optical_Gray_Weighted')
 
-# # restructure_dual_stream(model_mag)
+# # FOR SAMM
+# casme_list, casme_labels = img_label_loading_samm(root_dir, 'SAMM_Optical')
+# casme_ori, _ = img_label_loading_samm(ori_img, 'SAMM_TIM10')
+# casme2_list, casme2_labels = img_label_loading_samm(root_dir, 'SAMM_Optical_Gray_Weighted')
 
-# # print(casme_list)
-visualize_class_activation_maps_dual_stream(weights_path, model, None, casme_list, casme_labels, casme2_list, casme2_labels, casme_ori, feature_used + 'CASME2_Optical/')
-# visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Optical/')
+# # # restructure_dual_stream(model_mag)
+
+# # # print(casme_list)
+# visualize_class_activation_maps_dual_stream(weights_path, model, None, casme_list, casme_labels, casme2_list, casme2_labels, casme_ori, feature_used + 'SAMM_Optical/')
+# # visualize_class_activation_maps(weights_path, model, None, casme_list, casme_labels, casme_ori, feature_used + 'CASME2_Optical/')
 

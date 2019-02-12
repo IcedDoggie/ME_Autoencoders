@@ -36,6 +36,7 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
+from utilities import load_combined_labels
 from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
 from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 from siamese_models import euclidean_distance_loss
@@ -93,40 +94,11 @@ def train(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale'
 	data_dim = 4096
 	# tot_mat = np.zeros((classes, classes))
 
+	# labels loading for composite
+	casme2_table, samm_table, smic_table = load_combined_labels(root_dir)
 
-
-
-	# # labels reading (ori)
-	# casme2_table = loading_casme_table(root_dir, casme2_db)
-	# casme2_table = class_discretization(casme2_table, 'CASME_2')
-	# casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
-	# # total_list = casme_list
-	# # total_labels = casme_labels
-
-	# # labels reading (augmented)
-	# casme2_aug_table = loading_casme_table(root_dir, "CASME_Micro_Augmented")
-	# casme2_aug_table = class_discretization(casme2_aug_table, 'CASME_Micro_Augmented')
-	# casme_aug_list, casme_aug_labels = read_image(root_dir, "CASME_Micro_Augmented", casme2_aug_table)
-	# total_aug_list = casme_aug_list
-	# total_aug_labels = casme_aug_labels
-
-	# labels reading(casme)
-	casme2_table = loading_casme_table(root_dir, casme2_db)
-	# casme2_table = class_discretization(casme2_table, 'CASME_2')	
-	casme2_table = class_merging(casme2_table)
 	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
-
-
-	# labels reading(samm)
-	samm_table, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
-	# samm_table = class_discretization(samm_table, 'SAMM')	
-	samm_table = class_merging(samm_table)	
 	samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
-
-
-	# # labels reading(smic)
-	smic_table = loading_smic_table(root_dir, smic_db)
-	smic_table = smic_table[0]
 	smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)
 
 	total_list = casme_list + samm_list + smic_list

@@ -129,8 +129,8 @@ def landmark_extraction(shape_predictor, image, rects, rect_flag):
 
 # output_path = "/media/ice/OS/Datasets/APEX/SAMM_Apex/"
 # images_path = "/media/ice/OS/Datasets/APEX/SAMM_TIM10/"
-output_path = "/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_TIM10/SAMM_TIM10/"
-images_path = "/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/SAMM_CROPPED_APEX/"
+output_path = "/media/ice/OS/Datasets/CASME2/CASME2-RAW/"
+images_path = "/media/ice/OS/Datasets/Spotting/CASME2_Long_Sequence/"
 # images_path = "/media/ice/OS/Datasets/Combined_Dataset_Apex_Flow/CASME2_TIM10/CASME2_TIM10/"
 
 # create directories in cropped_SAMM
@@ -165,7 +165,7 @@ for subject, video, files in os.walk(images_path):
 		rect_flag = 0
 		for item in files:
 			filepath = subject + '/' + item
-			file_output = filepath.replace('SAMM_CROPPED_APEX', 'SAMM_TIM10/SAMM_TIM10/')
+			file_output = filepath.replace('CASME2/CASME2-RAW/', 'Spotting/CASME2_Long_Sequence/')
 			# print(file_output)
 
 			if rect_flag == 0:
@@ -180,8 +180,8 @@ for subject, video, files in os.walk(images_path):
 			
 			image = cv2.imread(filepath)
 			ori_h, ori_w = image.shape[0], image.shape[1]
-			image = cv2.resize(image, (500,350)) # SAMM
-			# image = cv2.resize(image, (500, 400)) # CASME			
+			# image = cv2.resize(image, (500,350)) # SAMM
+			image = cv2.resize(image, (500, 400)) # CASME			
 			image = cv2.warpAffine(image, M, (height, width), flags=cv2.INTER_CUBIC)
 			# image = cv2.resize(image, (ori_w, ori_h))
 
@@ -199,7 +199,7 @@ for subject, video, files in os.walk(images_path):
 			# cv2.waitKey(0)
 			cv2.imwrite(file_output, cropped_image)
 
-		print("%i/159"%counter)
+		print("%i/284"%counter)
 		counter += 1
 
 	 

@@ -43,9 +43,9 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	sys.setrecursionlimit(10000)
 	# /media/ice/OS/Datasets/Combined_Dataset_Apex/CASME2_TIM10/CASME2_TIM10	
 	# general variables and path
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	working_dir = '/home/ice/Documents/ME_Autoencoders/'
+	root_dir = '/media/ice/OS/Datasets/' + db + '/'
+	weights_path = '/media/ice/OS/Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -121,7 +121,7 @@ def train(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=learning_rate * 2)
-	batch_size = 60
+	batch_size = 1
 	# epochs = 100
 	total_samples = 0
 
@@ -411,7 +411,7 @@ def test(type_of_test, train_id, net, feature_type = 'grayscale', db='Combined_D
 			print("Macro_f1: " + str(macro_f1))
 			print("Weighted_f1: " + str(weighted_f1))
 
-train(siamese_base, train_id='siamese_14', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False) 
+train(siamese_base, train_id='siamese_14', net = None, feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False) 
 
 # train(siamese_vgg16_crossdb_imagenet, train_id='siamese_6', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 224, tf_backend_flag = False) 
 # train(siamese_base, train_id='siamese_7', net = 'vgg', feature_type='flow', db='Siamese Macro-Micro', spatial_size = 64, tf_backend_flag = False)

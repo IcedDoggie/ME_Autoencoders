@@ -35,7 +35,7 @@ from keras.models import Sequential, Model
 from keras.layers.core import Flatten, Dense, Dropout
 from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D, Conv3D, MaxPooling3D, ZeroPadding3D, AveragePooling2D
 from keras.layers import LSTM, GlobalAveragePooling2D, GRU, Bidirectional, UpSampling2D
-from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add
+from keras.layers import BatchNormalization, Input, Activation, Lambda, concatenate, add, Reshape
 from keras.engine import InputLayer
 from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
 	splittensor, Softmax4D
@@ -150,6 +150,41 @@ def train_shallow_vgg16(weights_name='imagenet', classes=5, ablation_flag=1):
 	plot_model(model, to_file='vgg16.png', show_shapes=True)	
 	
 	return model	
+
+def train_shallow_mobilenet(weights_name='imagenet', classes=5, ablation_flag=1):
+	model = MobileNet(weights = weights_name)
+
+	# Ablation #1	
+	if ablation_flag == 1:
+		x = model.layers[10].output
+
+	# Ablation #2
+	elif ablation_flag == 2:
+		x = model.layers[23].output
+
+	# Ablation #3
+	elif ablation_flag == 3:
+		x = model.layers[36].output
+
+	# Ablation #4 
+	elif ablation_flag == 4:
+		x = model.layers[73].output	
+
+	# # # GAP 
+	x = GlobalAveragePooling2D()(x)
+	x = Dense(classes, activation = 'softmax')(x)
+
+
+	model = Model(inputs = model.input, outputs = x)
+	print(model.summary())
+	plot_model(model, to_file='mobilenet.png', show_shapes=True)	
+	
+	return model	
+
+# train_shallow_mobilenet(ablation_flag=1)
+# train_shallow_mobilenet(ablation_flag=2)
+# train_shallow_mobilenet(ablation_flag=3)
+# train_shallow_mobilenet(ablation_flag=4)
 
 # train_shallow_resnet50()
 # train_shallow_inceptionv3()

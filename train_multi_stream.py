@@ -40,13 +40,15 @@ from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_s
 from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 from siamese_models import euclidean_distance_loss
 
+from stitch_nets import train_shallow_alexnet_imagenet_stitch
+
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	working_dir = '/home/ice/Documents/ME_Autoencoders/'
+	root_dir = '/media/ice/OS/Datasets/' + db + '/'
+	weights_path = '/media/ice/OS/Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -228,9 +230,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			for (alpha, beta) in zip(loso_generator, loso_generator_2):
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
-
+				print(".fit")
 				model.fit([X, X_2], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
-
+				print("after fit")
 				# model.fit([X, X_2, X_3], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				# model.fit([X, X_2, X_3], [y, X_2], batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
@@ -529,7 +531,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_31J_MULTIPLY_2FC', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet_stitch, 'stitch', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

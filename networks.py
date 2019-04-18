@@ -300,22 +300,22 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	model.load_weights('alexnet_weights.h5')
 
 	# modify architecture
-	##################### Ori #####################
-	last_conv_1 = model.layers[5].output
-	conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(last_conv_1)
-	conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
-	conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
-	conv_2 = ZeroPadding2D((2,2))(conv_2)
+	# ##################### Ori #####################
+	# last_conv_1 = model.layers[5].output
+	# conv_2 = Conv2D(256, (5, 5), strides=(1, 1), activation='relu', name='conv_2', kernel_initializer='he_normal', bias_initializer='he_normal')(last_conv_1)
+	# conv_2 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
+	# conv_2 = crosschannelnormalization(name="convpool_2")(conv_2)
+	# conv_2 = ZeroPadding2D((2,2))(conv_2)
 
-	conv_2 = Flatten(name="flatten")(conv_2)
-	conv_2 = Dropout(0.5)(conv_2)
-	##############################################
-
-	# ################# Use 2 conv with weights ######################
-	# conv_2 = model.layers[13].output
-	# conv_2 = Flatten(name = 'flatten')(conv_2)
+	# conv_2 = Flatten(name="flatten")(conv_2)
 	# conv_2 = Dropout(0.5)(conv_2)
-	# ################################################################
+	# ##############################################
+
+	################# Use 2 conv with weights ######################
+	conv_2 = model.layers[13].output
+	conv_2 = Flatten(name = 'flatten')(conv_2)
+	conv_2 = Dropout(0.5)(conv_2)
+	################################################################
 
 	# ##### FC for experiments #####
 	# fc_1 = Dense(4096, activation='relu', name='fc_1', kernel_initializer='he_normal', bias_initializer='he_normal')(conv_2)

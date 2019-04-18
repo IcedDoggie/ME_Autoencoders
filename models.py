@@ -217,7 +217,9 @@ def alexnet(input_shape, nb_classes, mean_flag):
 	
 	return alexnet
 
-
+# model = alexnet(input_shape = (3, 227, 227), nb_classes=1000, mean_flag=True)
+# print(model.summary())
+# plot_model(model, show_shapes=True, to_file='alexnet.jpg')
 
 def tensor_reshape(x):
 	# print("Tensor Reshape")

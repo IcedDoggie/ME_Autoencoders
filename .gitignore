@@ -8,6 +8,7 @@
 *.ipynb
 *.csv
 *.txt
+*.sh
 ImageModels-master/
 keras-oneshot/
 Siamese-Networks-for-One-Shot-Learning/
@@ -18,3 +19,4 @@ Images/
 spottedApex_x4s_a28x84_max_max_conc_3_5_8_3x3_max_fc512/
 dat_and_labels/
 spotted_apex/
+__pycache__/

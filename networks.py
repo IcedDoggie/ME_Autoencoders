@@ -1,5 +1,5 @@
 import pandas as pd
-import cv2
+# import cv2
 import numpy as np
 # import matplotlib.pyplot as plt
 import os
@@ -44,10 +44,10 @@ from theano import tensor as T
 from keras.layers import Multiply, Concatenate, Add
 
 
-from utilities import loading_smic_table, loading_samm_table, loading_casme_table
-from utilities import class_merging, read_image, create_generator_LOSO
-from utilities import LossHistory, record_loss_accuracy
-from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
+# from utilities import loading_smic_table, loading_samm_table, loading_casme_table
+# from utilities import class_merging, read_image, create_generator_LOSO
+# from utilities import LossHistory, record_loss_accuracy
+# from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder, alexnet
 from models import tensor_reshape, attention_control, att_shape, l2_normalize, l2_normalize_output_shape, repeat_element_autofeat
 
@@ -298,6 +298,7 @@ def train_alexnet_imagenet(classes = 5):
 def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
 	model.load_weights('alexnet_weights.h5')
+	plot_model(model, show_shapes=True)
 
 	# modify architecture
 	# ##################### Ori #####################
@@ -331,7 +332,7 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	prediction = Activation("softmax")(dense_1)
 
 	model = Model(inputs = model.input, outputs = prediction)		
-	plot_model(model, to_file='shallowalex', show_shapes =True)
+	plot_model(model, show_shapes = True, to_file='shallowalex.png')
 	print(model.summary())
 	return model
 
@@ -445,11 +446,11 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 	model_strain = train_shallow_alexnet_imagenet(classes = classes)
 
 	# FOR MULTIPLYING / ADDITION
-	model_mag = Model(inputs = model_mag.input, outputs = model_mag.layers[-5].output)
-	model_strain = Model(inputs = model_strain.input, outputs = model_strain.layers[-5].output)
+	model_mag = Model(inputs = model_mag.input, outputs = model_mag.layers[-4].output)
+	model_strain = Model(inputs = model_strain.input, outputs = model_strain.layers[-4].output)
 
-	plot_model(model_mag, show_shapes=True, to_file = 'model_mag')
-	plot_model(model_strain, show_shapes=True, to_file = 'model_strain')
+	plot_model(model_mag, show_shapes=True, to_file = 'model_mag.png')
+	plot_model(model_strain, show_shapes=True, to_file = 'model_strain.png')
 
 	# # FOR CONCATENATION
 	# model_mag = Model(inputs = model_mag.input, outputs = model_mag.layers[-4].output)
@@ -458,31 +459,26 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 	flatten_mag = model_mag(input_mag)
 	flatten_strain = model_strain(input_strain)
 
-	plot_model(model_mag, to_file = 'mag_model', show_shapes=True)
-	plot_model(model_strain, to_file = 'strain_model', show_shapes=True)
+	plot_model(model_mag, to_file = 'mag_model.png', show_shapes=True)
+	plot_model(model_strain, to_file = 'strain_model.png', show_shapes=True)
 
 	# concatenate FOR MULTIPLY OR ADD
-	concat = Multiply()([flatten_mag, flatten_strain])
+	# concat = Multiply()([flatten_mag, flatten_strain])
 	# concat = Add()([flatten_mag, flatten_strain])
+	# concat = Flatten()(concat) # FOR MULTIPLY ADD
 
 	# # # concatenate FOR CONCATENATION
-	# concat = Concatenate(axis=1)([flatten_mag, flatten_strain])
+	concat = Concatenate(axis=1)([flatten_mag, flatten_strain])
 
-
-
-	concat = Flatten()(concat) # FOR MULTIPLY ADD
-	#concat = Lambda(l2_normalize, output_shape=l2_normalize_output_shape)(concat)
+	
 	dropout = Dropout(0.5)(concat)
-
-	# fc_1 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(dropout)
-	# fc_2 = Dense(4096, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(fc_1)
 
 	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
 	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
 
 
 	model = Model(inputs = [input_mag, input_strain], outputs = prediction)
-	plot_model(model, to_file = 'train_dual_stream_shallow_alexnet', show_shapes=True)
+	plot_model(model, to_file = 'train_dual_stream_shallow_alexnet.png', show_shapes=True)
 	print(model.summary())
 
 	return model
@@ -748,3 +744,45 @@ def temporal_module(data_dim, timesteps_TIM, classes, weights_path=None):
 		model.load_weights(weights_path)
 
 	return model		
+
+
+def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
+	input_gray = Input(shape=(3, 227, 227))
+	input_mag = Input(shape=(3, 227, 227))
+	input_strain = Input(shape=(3, 227, 227))
+
+	dssn = train_dual_stream_shallow_alexnet(classes = classes)
+	sssn = train_shallow_alexnet_imagenet(classes = classes)
+
+	model_dssn = Model(inputs = dssn.input, outputs = dssn.layers[-4].output)
+	model_sssn = Model(inputs = sssn.input, outputs = sssn.layers[-4].output)
+
+	flatten_dssn = model_dssn([input_gray, input_strain])
+	flatten_sssn = model_sssn(input_mag)
+	# padded_gray = model_gray(input_gray)
+	# padded_mag = model_mag(input_mag)
+	# padded_strain = model_strain(input_strain)
+
+	# # concatenate via multipling the padded convolutions
+	# concat = Multiply()([flatten_dssn, flatten_sssn])
+	# concat = Flatten()(concat)
+
+	concat = Concatenate()([flatten_dssn, flatten_sssn])
+	dropout = Dropout(0.5)(concat)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+
+	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = prediction)
+	plot_model(model, to_file = 'train_dssn_merging_with_sssn.png', show_shapes=True)
+	print(model.summary())
+
+	return model
+
+# train_dssn_merging_with_sssn(classes = 5)
+# train_dual_stream_shallow_alexnet(classes = 5)
+
+# train_shallow_alexnet_imagenet(classes = 5)
+
+
+

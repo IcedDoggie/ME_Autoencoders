@@ -333,7 +333,7 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 
 	model = Model(inputs = model.input, outputs = prediction)		
 	plot_model(model, show_shapes = True, to_file='shallowalex.png')
-	print(model.summary())
+	# print(model.summary())
 	return model
 
 def train_shallow_alexnet_imagenet_FCN(classes = 5, freeze_flag = None):
@@ -478,7 +478,7 @@ def train_dual_stream_shallow_alexnet(classes = 5, freeze_flag=None):
 
 
 	model = Model(inputs = [input_mag, input_strain], outputs = prediction)
-	plot_model(model, to_file = 'train_dual_stream_shallow_alexnet.png', show_shapes=True)
+	# plot_model(model, to_file = 'train_dual_stream_shallow_alexnet.png', show_shapes=True)
 	print(model.summary())
 
 	return model
@@ -775,7 +775,7 @@ def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 
 	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = prediction)
 	plot_model(model, to_file = 'train_dssn_merging_with_sssn.png', show_shapes=True)
-	print(model.summary())
+	# print(model.summary())
 
 	return model
 

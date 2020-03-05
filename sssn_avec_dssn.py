@@ -36,13 +36,13 @@ from networks import train_dual_stream_with_auxiliary_attention_networks_dual_lo
 from siamese_models import euclidean_distance_loss
 from networks import train_dssn_merging_with_sssn
 
-def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
+def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined Dataset', spatial_size = 224, classifier_flag = 'softmax', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/ICE DATA/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/ICE DATA/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -83,12 +83,12 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	total_labels = casme_labels
 
 	# MULTI STREAM SETTINGS (TRI STREAM)
-	sec_db = 'CASME2_Optical_Gray_Weighted'
+	sec_db = 'CASME2_Optical'
 	casme2_2 = loading_casme_table(root_dir, sec_db)
 	casme2_2 = class_discretization(casme2_2, 'CASME_2')
 	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
 
-	third_db = 'CASME2_Flow_Strain_minor'
+	third_db = 'CASME2_Optical_Gray_Weighted'
 	casme2_3 = loading_casme_table(root_dir, third_db)
 	casme2_3 = class_discretization(casme2_3, 'CASME_2')
 	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
@@ -110,6 +110,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 	# pre-process input images and normalization
 	for sub in range(len(total_list)):
+
 		# model
 		model = type_of_test(classes = classes, freeze_flag = freeze_flag)
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
@@ -128,16 +129,6 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			model.fit([X, X_2, X_3], y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 			print("after fit")
 
-			# svm
-			if classifier_flag == 'svc':
-				if attention == True:
-					encoder = Model(inputs = model.input, outputs = model.get_layer('softmax_activate').get_output_at(1))
-					plot_model(encoder, to_file='encoder.png', show_shapes=True)
-				else:
-					encoder = Model(inputs = model.input, outputs = model.get_layer('softmax_activate').output)
-				spatial_features = encoder.predict([X, X_2, X_3], batch_size = batch_size)
-
-				clf.fit(spatial_features, non_binarized_y)
 		
 
 		# Resource Clear up
@@ -162,7 +153,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				predicted_class = clf.predict(spatial_features)
 
 			elif classifier_flag == 'softmax':
-				spatial_features = model.predict([X, X_2])
+				spatial_features = model.predict([X, X_2, X_3])
 				predicted_class = np.argmax(spatial_features, axis=1)
 
 			non_binarized_y = non_binarized_y[0]
@@ -196,10 +187,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-
 		# save the maximum epoch only (replace with maximum f1)
 		weights_name = weights_path + str(sub) + '.h5'
-		model.save_weights(weights_name)
+		print(weights_name)
+		model.save(weights_name)
 
 		# Resource Clear up
 		del X, y, non_binarized_y
@@ -220,7 +211,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn', preprocessing_type='vgg', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn', preprocessing_type='vgg', feature_type = 'flow_strain_minor', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False)
 
 
 

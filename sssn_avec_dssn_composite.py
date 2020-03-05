@@ -40,9 +40,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/ICE DATA/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/ICE DATA/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
 
@@ -237,7 +237,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 		# save the maximum epoch only (replace with maximum f1)
 		weights_name = weights_path + str(sub) + '.h5'
-		model.save_weights(weights_name)
+		print(weights_name)
+		model.save(weights_name)
 
 		# Resource Clear up
 		del X, y, non_binarized_y

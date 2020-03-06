@@ -30,7 +30,7 @@ from networks import train_res50_imagenet, train_vgg16_imagenet, train_inception
 from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
-from utilities import epoch_analysis
+from utilities import epoch_analysis, load_combined_labels
 from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
 from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 from siamese_models import euclidean_distance_loss
@@ -74,52 +74,55 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	channels = 5
 	data_dim = 4096
 
+	casme2_table, samm_table, smic_table = load_combined_labels(root_dir)
+
 	# labels reading
-	casme2_table = loading_casme_table(root_dir, casme2_db)
-	casme2_table = class_discretization(casme2_table, 'CASME_2')	
+	# casme2_table = loading_casme_table(root_dir, casme2_db)
+	# casme2_table = class_merging(casme2_table)	
+
 	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
 
 	# MULTI STREAM SETTINGS (TRI STREAM)
-	sec_db = 'CASME2_Optical'
-	casme2_2 = loading_casme_table(root_dir, sec_db)
-	casme2_2 = class_discretization(casme2_2, 'CASME_2')
-	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
+	sec_db = 'CASME2_Flow_Strain_minor'
+	# casme2_2 = loading_casme_table(root_dir, sec_db)
+	# casme2_2 = class_merging(casme2_2)
+	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_table)
 
-	third_db = 'CASME2_Optical_Gray_Weighted'
-	casme2_3 = loading_casme_table(root_dir, third_db)
-	casme2_3 = class_discretization(casme2_3, 'CASME_2')
-	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
+	third_db = 'CASME2_Optical'
+	# casme2_3 = loading_casme_table(root_dir, third_db)
+	# casme2_3 = class_merging(casme2_3)
+	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_table)
 
 	# SAMM DBs
-	samm_1, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
-	samm_1 = class_merging(samm_1)
-	samm_list, samm_labels = read_image(root_dir, samm_db, samm_1)
+	# samm_1, _ = loading_samm_table(root_dir, samm_db, objective_flag=0)
+	# samm_1 = class_merging(samm_1)
+	samm_list, samm_labels = read_image(root_dir, samm_db, samm_table)
 
-	samm_sec_db = 'SAMM_Optical'
-	samm_2, _ = loading_samm_table(root_dir, samm_sec_db, objective_flag=0)
-	samm_2 = class_merging(samm_2)
-	samm_list_2, samm_labels_2 = read_image(root_dir, samm_sec_db, samm_2)
+	samm_sec_db = 'SAMM_Flow_Strain_minor'
+	# samm_2, _ = loading_samm_table(root_dir, samm_sec_db, objective_flag=0)
+	# samm_2 = class_merging(samm_2)
+	samm_list_2, samm_labels_2 = read_image(root_dir, samm_sec_db, samm_table)
 
-	samm_third_db = 'SAMM_Optical_Gray_Weighted'
-	samm_3, _ = loading_samm_table(root_dir, samm_third_db, objective_flag=0)
-	samm_3 = class_merging(samm_3)
-	samm_list_3, samm_labels_3 = read_image(root_dir, samm_third_db, samm_3)
+	samm_third_db = 'SAMM_Optical'
+	# samm_3, _ = loading_samm_table(root_dir, samm_third_db, objective_flag=0)
+	# samm_3 = class_merging(samm_3)
+	samm_list_3, samm_labels_3 = read_image(root_dir, samm_third_db, samm_table)
 
 
 	# SMIC DBs
-	smic_1 = loading_smic_table(root_dir, smic_db)
-	smic_1 = smic_1[0]
-	smic_list, smic_labels = read_image(root_dir, smic_db, smic_1)		
+	# smic_1 = loading_smic_table(root_dir, smic_db)
+	# smic_1 = smic_1[0]
+	smic_list, smic_labels = read_image(root_dir, smic_db, smic_table)		
 
-	smic_sec_db = 'SMIC_Optical_Christy'
-	smic_2 = loading_smic_table(root_dir, smic_sec_db)
-	smic_2 = smic_2[0]
-	smic_list_2, smic_labels_2 = read_image(root_dir, smic_sec_db, smic_2)		
+	smic_sec_db = 'SMIC_Flow_Strain_minor'
+	# smic_2 = loading_smic_table(root_dir, smic_sec_db)
+	# smic_2 = smic_2[0]
+	smic_list_2, smic_labels_2 = read_image(root_dir, smic_sec_db, smic_table)		
 
-	smic_third_db = 'SMIC_Optical_Gray_Weighted'
-	smic_3 = loading_smic_table(root_dir, smic_third_db)
-	smic_3 = smic_3[0]
-	smic_list_3, smic_labels_3 = read_image(root_dir, smic_third_db, smic_3)	
+	smic_third_db = 'SMIC_Optical_Christy'
+	# smic_3 = loading_smic_table(root_dir, smic_third_db)
+	# smic_3 = smic_3[0]
+	smic_list_3, smic_labels_3 = read_image(root_dir, smic_third_db, smic_table)	
 
 	# Combining each DBs
 	total_list = casme_list + samm_list + smic_list
@@ -259,7 +262,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn_composite_S_FG', preprocessing_type='vgg', feature_type = 'flow_strain_minor', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False, classes=3)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn_composite_G_FS', preprocessing_type='vgg', feature_type = 'gray_weighted_flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False, classes=3)
+
 
 
 

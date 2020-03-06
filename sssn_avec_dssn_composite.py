@@ -74,20 +74,21 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	channels = 5
 	data_dim = 4096
 
+
 	# labels reading
 	casme2_table = loading_casme_table(root_dir, casme2_db)
-	casme2_table = class_discretization(casme2_table, 'CASME_2')	
+	casme2_table = class_merging(casme2_table)	
 	casme_list, casme_labels = read_image(root_dir, casme2_db, casme2_table)
 
 	# MULTI STREAM SETTINGS (TRI STREAM)
 	sec_db = 'CASME2_Optical_Gray_Weighted'
 	casme2_2 = loading_casme_table(root_dir, sec_db)
-	casme2_2 = class_discretization(casme2_2, 'CASME_2')
+	casme2_2 = class_merging(casme2_2)
 	casme_list_2, casme_labels_2 = read_image(root_dir, sec_db, casme2_2)
 
 	third_db = 'CASME2_Flow_Strain_minor'
 	casme2_3 = loading_casme_table(root_dir, third_db)
-	casme2_3 = class_discretization(casme2_3, 'CASME_2')
+	casme2_3 = class_merging(casme2_3)
 	casme_list_3, casme_labels_3 = read_image(root_dir, third_db, casme2_3)
 
 	# SAMM DBs
@@ -259,7 +260,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn', preprocessing_type='vgg', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dssn_merging_with_sssn, 'sssn_avec_dssn', preprocessing_type='vgg', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, tf_backend_flag = False, classes=3)
 
 
 

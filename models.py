@@ -217,9 +217,63 @@ def alexnet(input_shape, nb_classes, mean_flag):
 	
 	return alexnet
 
+def alexnet_dilation(input_shape, nb_classes, mean_flag): 
+	# code adapted from https://github.com/heuritech/convnets-keras
+
+	inputs = Input(shape=input_shape, name='main_input')
+
+	if mean_flag:
+		mean_subtraction = Lambda(mean_subtract, name='mean_subtraction')(inputs)
+		conv_1 = Conv2D(96, (11, 11), strides=(4,4), activation='relu',
+						   name='conv_1', kernel_initializer='he_normal', bias_initializer='he_normal', dilation_rate=2)(mean_subtraction)
+	else:
+		conv_1 = Conv2D(96, (11, 11), strides=(4,4), activation='relu',
+						   name='conv_1', kernel_initializer='he_normal', bias_initializer='he_normal', dilation_rate=2)(inputs)
+
+	conv_2 = MaxPooling2D((3, 3), strides=(2,2))(conv_1)
+	conv_2 = crosschannelnormalization(name="convpool_1")(conv_2)
+	conv_2 = ZeroPadding2D((2,2))(conv_2)
+	conv_2 = concatenate([
+		Conv2D(128, (5, 5), activation="relu", kernel_initializer='he_normal', bias_initializer='he_normal', name='conv_2_'+str(i+1), dilation_rate=2)(
+		splittensor(ratio_split=2,id_split=i)(conv_2)
+		) for i in range(2)], axis=1, name="conv_2")
+
+	conv_3 = MaxPooling2D((3, 3), strides=(2, 2))(conv_2)
+	conv_3 = crosschannelnormalization()(conv_3)
+	conv_3 = ZeroPadding2D((1,1))(conv_3)
+	conv_3 = Conv2D(384, (3, 3), activation='relu', name='conv_3', kernel_initializer='he_normal', bias_initializer='he_normal', dilation_rate=2)(conv_3)
+
+	conv_4 = ZeroPadding2D((1,1))(conv_3)
+	conv_4 = concatenate([
+		Conv2D(192, (3, 3), activation="relu", kernel_initializer='he_normal', bias_initializer='he_normal', name='conv_4_'+str(i+1), dilation_rate=2)(
+		splittensor(ratio_split=2,id_split=i)(conv_4)
+		) for i in range(2)], axis=1, name="conv_4")
+
+	conv_5 = ZeroPadding2D((1,1))(conv_4)
+	conv_5 = concatenate([
+		Conv2D(128, (3, 3), activation="relu", kernel_initializer='he_normal', bias_initializer='he_normal', name='conv_5_'+str(i+1), dilation_rate=2)(
+		splittensor(ratio_split=2,id_split=i)(conv_5)
+		) for i in range(2)], axis=1, name="conv_5")
+
+	dense_1 = MaxPooling2D((3, 3), strides=(2,2),name="convpool_5")(conv_5)
+
+	dense_1 = Flatten(name="flatten")(dense_1)
+	dense_1 = Dense(4096, activation='relu',name='dense_1', kernel_initializer='he_normal', bias_initializer='he_normal')(dense_1)
+	dense_2 = Dropout(0.5)(dense_1)
+	dense_2 = Dense(4096, activation='relu',name='dense__2', kernel_initializer='he_normal', bias_initializer='he_normal')(dense_2)
+	dense_3 = Dropout(0.5)(dense_2)
+	dense_3 = Dense(nb_classes,name='dense_3_new', kernel_initializer='he_normal', bias_initializer='he_normal')(dense_3)
+
+	prediction = Activation("softmax",name="softmax")(dense_3)
+
+	alexnet = Model(inputs = inputs, outputs = prediction)
+	
+	return alexnet
 # model = alexnet(input_shape = (3, 227, 227), nb_classes=1000, mean_flag=True)
 # print(model.summary())
-# plot_model(model, show_shapes=True, to_file='alexnet.jpg')
+# model = alexnet_dilation(input_shape = (3, 227, 227), nb_classes=1000, mean_flag=True)
+# print(model.summary())
+# plot_model(model, show_shapes=True, to_file='alexnet_dilation.png')
 
 def tensor_reshape(x):
 	# print("Tensor Reshape")

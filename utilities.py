@@ -720,6 +720,8 @@ def load_combined_labels(path):
 	
 	# table = table[['d''sub', 'vid', 'class']]
 	table = table.as_matrix()
+	# print(len(table))
+
 	pivoting = [0]
 	curr_db = table[0][0]
 	for counter in range(len(table)):
@@ -727,7 +729,7 @@ def load_combined_labels(path):
 		if db != curr_db:
 			pivoting += [counter]
 			curr_db = db
-
+	# print(len(table))
 
 	table = np.delete(table, 0, axis=1)
 	### HARD SEQUENCE: CASME --> SMIC --> SAMM

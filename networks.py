@@ -768,9 +768,13 @@ def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 	# concat = Flatten()(concat)
 
 	concat = Concatenate()([flatten_dssn, flatten_sssn])
-	dropout = Dropout(0.5)(concat)
+	# dropout = Dropout(0.5)(concat)
 
-	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+	fc_1 = Dense(1024, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(concat)
+	fc_2 = Dense(512, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(fc_1)
+	# dropout = Dropout(0.5)(fc_2)
+
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(fc_2)
 	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
 
 	model = Model(inputs = [input_mag, input_strain, input_gray], outputs = prediction)

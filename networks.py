@@ -50,7 +50,7 @@ from keras.layers import Multiply, Concatenate, Add
 # from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder, alexnet
 from models import tensor_reshape, attention_control, att_shape, l2_normalize, l2_normalize_output_shape, repeat_element_autofeat
-
+from models import alexnet_dilation
 
 def test_res50_imagenet(weights_name = 'imagenet'):
 	resnet50 = ResNet50(weights = 'imagenet')
@@ -296,8 +296,12 @@ def train_alexnet_imagenet(classes = 5):
 	return model
 
 def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
-	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
-	model.load_weights('alexnet_weights.h5')
+	# model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
+	# model.load_weights('alexnet_weights.h5')
+	# plot_model(model, show_shapes=True)
+
+	
+	model = alexnet_dilation(input_shape = (3, 227, 227), nb_classes = classes, mean_flag = True)
 	plot_model(model, show_shapes=True)
 
 	# modify architecture

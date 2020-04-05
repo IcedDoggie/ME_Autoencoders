@@ -62,13 +62,13 @@ class Stitch_Unit(Layer):
 		return linear_prod
 
 	def compute_output_shape(self, input_shape):
-		print("Compute Output Shape")
+		# print("Compute Output Shape")
 		depth = int(input_shape[1])
 		resolution = input_shape[2]
 
 		new_shape = (None, depth, resolution, resolution)
-		print("new shape")
-		print(new_shape)
+		# print("new shape")
+		# print(new_shape)
 		return new_shape
 
 

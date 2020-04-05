@@ -41,8 +41,10 @@ from keras.engine import InputLayer
 from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
 	splittensor, Softmax4D
 from theano import tensor as T
-from keras.layers import Multiply, Concatenate, Add
+from keras.layers import Multiply, Concatenate, Add, TimeDistributed
 
+from convnetskeras.customlayers import convolution2Dgroup, crosschannelnormalization, \
+	splittensor, Softmax4D
 
 # from utilities import loading_smic_table, loading_samm_table, loading_casme_table
 # from utilities import class_merging, read_image, create_generator_LOSO
@@ -747,7 +749,11 @@ def temporal_module(data_dim, timesteps_TIM, classes, weights_path=None):
 	if weights_path:
 		model.load_weights(weights_path)
 
+
+	model = Model(inputs=model.input, outputs=model.output)
+
 	return model		
+
 
 
 def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
@@ -783,10 +789,73 @@ def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 
 	return model
 
+
+
+
+def train_sssn_lrcn(timesteps_TIM, classes):
+
+	x = Input(shape=(10, 3, 227, 227))
+
+	model = train_shallow_alexnet_imagenet(classes=classes)
+	model = Model(inputs=model.input, outputs=model.layers[-4].output)
+	model = train_res50_imagenet()
+	plot_model(model, show_shapes=True, to_file='train_sssn_lrcn.png')
+
+	for layer_counter in range(len(model.layers) - 1):
+
+		# print(model.layers[layer_counter + 1])
+		# print(type(model.layers[layer_counter + 1]))
+		# # model.layers[layer_counter + 1] = TimeDistributed(model.layers[layer_counter + 1])
+		# if type(model.layers[layer_counter + 1] == 'keras.layers.merge.Concatenate'):
+		# 	x = TimeDistributed(model.layers[layer_counter + 1])(splittensor(ratio_split=2,id_split=[0, 1])(x))
+		# 	# x = concatenate([
+		# 	# 	Conv2D(128, (5, 5), activation="relu", kernel_initializer='he_normal', bias_initializer='he_normal', name='conv_2_'+str(i+1), dilation_rate=2)(
+		# 	# 	splittensor(ratio_split=2,id_split=i)(x)
+		# 	# 	) for i in range(2)], axis=1, name="conv_2")
+		# 	# (splittensor(ratio_split=2,id_split=i)(x)) for i in range(2)], axis=1, name="conv_2")		
+		# else:			
+		# 	x = TimeDistributed(model.layers[layer_counter + 1])(x)
+		x = TimeDistributed(model.layers[layer_counter + 1])(x)	
+	print(K.int_shape(x))
+	model = Model(inputs=input_frame, outputs=model.output)
+	plot_model(model, show_shapes=True, to_file='train_sssn_lrcn_TIME_DISTRIBUTED.png')
+	print(model.summary())
+	# encoded_frame = TimeDistributed(Lambda( Flatten() ))(input_frame)
+	# encoded_frame = TimeDistributed(Lambda(Dense(3000, activation='relu')))(encoded_frame)
+	# print(K.print_tensor(encoded_frame))
+	# model = Model(inputs=input_frame, outputs=encoded_frame)
+	return model
+
+	# encoded_frame = K.reshape(encoded_frame, ())
+	# lstm1 = LSTM(3000, return_sequences=False)(encoded_frame)
+	# model = Model(inputs=input_frame, outputs=lstm1.output)
+	# plot_model(model, show_shapes=True, to_file='train_sssn_lrcn.png')
+
+	# lstm1 = LSTM(3000, return_sequences=False)(encoded_frame)
+
+# model = train_sssn_lrcn(timesteps_TIM=10, classes=5)
+# frame_sequence = np.random.random(size=(1, 10, 3, 227, 227))
+# output = model.predict(frame_sequence)
+# print(output.shape)
 # train_dssn_merging_with_sssn(classes = 5)
 # train_dual_stream_shallow_alexnet(classes = 5)
 
 # train_shallow_alexnet_imagenet(classes = 5)
+
+# shallow_alexnet_recurrent_network(classes=5)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

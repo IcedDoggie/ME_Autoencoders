@@ -48,12 +48,20 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# /home/babeen/Documents/OULU_Datasets/Cropped
 	sys.setrecursionlimit(10000)
 
-	# path for laptop
-	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	root_dir = '/home/babeen/Documents/OULU_Datasets/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# path for viprlab server
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-		os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
+		os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
+
+
+	# # path for laptop
+	# working_dir = '/home/babeen/Documents/ME_Autoencoders/'
+	# root_dir = '/home/babeen/Documents/OULU_Datasets/'
+	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
 
 	# # general variables and path
 	# working_dir = '/home/ice/Documents/ME_Autoencoders/'

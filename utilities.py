@@ -171,6 +171,7 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 	Y = []
 	non_binarized_Y = []
 
+
 	for subj_counter in range(len(x)):
 		# train case
 		if train_phase == 'true':
@@ -205,9 +206,11 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 			if subj_counter != sub:
 				one_frame = []
 				one_vid = []
+				one_vid_labels = []
 				seq_counter = 0
 
 				for each_vid in x[subj_counter]:
+
 					for each_file in each_vid:
 						image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 						image = img.img_to_array(image)
@@ -217,36 +220,32 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 						elif net == 'vgg':
 							image = preprocess_input(image)
 						image = np.transpose(image, (1, 2, 3, 0))
-						one_frame += [image]
+
+						one_vid += [image]
+						one_vid_labels += []
+						seq_counter += 1
+
 						
 						if seq_counter / (sequence_len) == 1:
 							one_vid = np.stack(one_vid, axis = -1)
 							one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
 							X += [one_vid]					
 							one_vid = []
+							one_vid_labels = []
 							seq_counter = 0
 							# print(one_vid)
 										
-						one_vid += [image]
-						seq_counter += 1
 
-					one_vid = np.stack(one_vid, axis = -1)
-					one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-					X += [one_vid]	
-					# print(one_vid)
-					
+
 					temp_y = np_utils.to_categorical(y[subj_counter], classes)
 					# non_binarized_Y += [y[subj_counter]]
 
-					for item in y[subj_counter]:
-						non_binarized_Y += [item]
+				for item in y[subj_counter]:
+					non_binarized_Y += [item]
 
-					for each_label in temp_y:
-						# Y.append(each_label)
-						Y += [each_label]			
-						# non_binarized_Y += [y[subj_counter]]	
-					# print(each_file)
-					# print(one_vid.shape)
+				for each_label in temp_y:
+					Y += [each_label]			
+
 
 		# test case
 		else:
@@ -266,8 +265,10 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 						elif net == 'vgg':
 							image = preprocess_input(image)
 						image = np.transpose(image, (1, 2, 3, 0))
-						one_frame += [image]
 
+						one_vid += [image]
+						seq_counter += 1
+						
 						if seq_counter / (sequence_len) == 1:
 							one_vid = np.stack(one_vid, axis = -1)
 							one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
@@ -277,12 +278,11 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 							seq_counter = 0
 							# print(one_vid)
 
-						one_vid += [image]
-						seq_counter += 1
 
-					one_vid = np.stack(one_vid, axis = -1)
-					one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-					X += [one_vid]	
+
+					# one_vid = np.stack(one_vid, axis = -1)
+					# one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+					# X += [one_vid]	
 
 					temp_y = np_utils.to_categorical(y[subj_counter], classes)
 					for each_label in temp_y:
@@ -291,12 +291,22 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 						non_binarized_Y += [y[subj_counter]]
 
 
-	X = np.stack(X, axis = 0)
+	X = np.asarray(X)
+	X = np.rollaxis(X, axis=4, start=1)
+	# print(X)
+	# print(X.shape)
+
+
 	Y = np.vstack(Y)
-	Y = Y[::sequence_len]
-	non_binarized_Y = non_binarized_Y[::sequence_len]
-	print(X.shape)
-	print(y.shape)
+	# Y = Y[::sequence_len]
+	y = np.asarray(Y)
+	# non_binarized_Y = non_binarized_Y[::sequence_len]
+	non_binarized_Y = np.asarray(non_binarized_Y)
+	# print(X.shape)
+	# print(y)
+	# print(y.shape)
+	# print(non_binarized_Y)
+	# print(non_binarized_Y.shape)
 
 	if train_phase == 'true':
 		yield X, Y

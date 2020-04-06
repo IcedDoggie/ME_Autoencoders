@@ -129,6 +129,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	total_list = casme_list
 	total_labels = casme_labels
 
+	# print(total_labels)
+	# print(len(total_labels))
+
 	# # MULTI STREAM SETTINGS (TRI STREAM)
 	# sec_db = 'CASME2_Optical_Gray_Weighted'
 	# casme2_2 = loading_casme_table(root_dir, sec_db)
@@ -182,12 +185,12 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 1
+	batch_size  = 10
 	epochs = 1
 	total_samples = 0
 
 	# codes for epoch analysis
-	epochs_step = 100
+	epochs_step = 1
 	epochs = 1
 	macro_f1_list = []
 	weighted_f1_list = []
@@ -239,61 +242,50 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='svc', sequence_len = 10)
 
 			for X, y, non_binarized_y in loso_generator:
-				print("LOSO gen")
-				print(X.shape)
+				seq_y = y[::10, :]
+				print(seq_y.shape)
 				# spatial model (for separate lrcn)
+				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
+				X = X[0:10]
+				y = y[0:10]		
+				seq_y = y[::10]		
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
-				seq_y = y[::10]
+				X = encoder.predict(X)
+				X = np.reshape(X, (int(batch_size / X.shape[0]), X.shape[0], X.shape[1]))
+				print(X.shape)
+
 				recurrent_model.fit(X, seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
 								
 
-
-
-
-			
 
 			# Resource Clear up
 			del X, y
 
 			# Test Time 
-			test_loso_generator = create_generator_LOSO(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
-			test_loso_generator_2 = create_generator_LOSO(casme_list_2, casme_labels_2, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
-			# test_loso_generator_3 = create_generator_LOSO(casme_list_3, casme_labels_3, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
-
-			# for (alpha, beta, omega) in zip(test_loso_generator, test_loso_generator_2, test_loso_generator_3):
-			# 	X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
-			# 	X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]	
-			# 	X_3, y_3, non_binarized_y_3 = omega[0], omega[1], omega[2]				
+			test_loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 10)
+		
 	
-			for (alpha, beta) in zip(test_loso_generator, test_loso_generator_2):
-				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
-				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]	
+			for X, y, non_binarized_y in test_loso_generator:
+				seq_y = y[::10, :]
+				print(seq_y.shape)
+				# spatial model (for separate lrcn)
+				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
+				X = X[0:10]
+				y = y[0:10]		
+				seq_y = y[::10]		
+				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
+				X = encoder.predict(X)
+				X = np.reshape(X, (int(batch_size / X.shape[0]), X.shape[0], X.shape[1]))
+				print(X.shape)
 
-				# Spatial Encoding
-				# svm
-				if classifier_flag == 'svc':
-					spatial_features = encoder.predict([X, X_2, X_3], batch_size = batch_size)
-					if tf_backend_flag == True:
-						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
-					predicted_class = clf.predict(spatial_features)
-
-				# # softmax
-				# elif classifier_flag == 'softmax':
-				# 	spatial_features = model.predict([X, X_2, X_3])
-				# 	predicted_class = np.argmax(spatial_features, axis=1)
-				# softmax
-				elif classifier_flag == 'softmax':
-					spatial_features = model.predict([X, X_2])
-					predicted_class = np.argmax(spatial_features, axis=1)
-
-				non_binarized_y = non_binarized_y[0]
-				non_binarized_y_2 = non_binarized_y_2[0]
+				predicted_class = recurrent_model.predict(X)
+				predicted_class = np.argmax(predicted_class)
 
 				print("ROW 2 ROW 3 should be the same SANITY CHECK")
 				print(predicted_class)
 				print(non_binarized_y)	
-				print(non_binarized_y_2)
+
 
 				# for sklearn macro f1 calculation
 				for counter in range(len(predicted_class)):

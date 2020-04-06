@@ -255,8 +255,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				print(seq_y.shape)
 				# spatial model (for separate lrcn)
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
-				X = X[0:batch_size]
-				y = y[0:batch_size]		
+				# X = X[0:batch_size]
+				# y = y[0:batch_size]		
 				seq_y = y[::10]		
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
@@ -283,31 +283,29 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				non_binarized_y = non_binarized_y[:, 0]
 
-				for counter_y in range(len(non_binarized_y)):
 
-					seq_y = y[::10, :]
-					print(seq_y.shape)
-					# spatial model (for separate lrcn)
-					X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
+				seq_y = y[::10, :]
 
-					seq_y = y[::10]		
-					encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
-					X = encoder.predict(X)
+				# spatial model (for separate lrcn)
+				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
 
-					# select better features here
-					X = X[0:1000]
+				seq_y = y[::10]		
+				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
+				X = encoder.predict(X)
 
-					X = np.reshape(X, (int(batch_size / 10), 10, X.shape[1]))
-					print(X.shape)
+				# select better features here
+				X = X[0:1000]
 
-					predicted_class = recurrent_model.predict(X)
-					predicted_class = np.argmax(predicted_class, axis=1)
-					p_class += [predicted_class]
-				predicted_class = np.asarray(p_class)
+				X = np.reshape(X, (len(non_binarized_y), 10, X.shape[1]))
+				print(X.shape)
+
+				predicted_class = recurrent_model.predict(X)
+				predicted_class = np.argmax(predicted_class, axis=1)
+
 				print(non_binarized_y)
 				print(non_binarized_y.shape)
 				
-				non_binarized_y = non_binarized_y[0:2]
+				# non_binarized_y = non_binarized_y[0:2]
 				print("ROW 2 ROW 3 should be the same SANITY CHECK")
 				print(predicted_class)
 				print(non_binarized_y)	

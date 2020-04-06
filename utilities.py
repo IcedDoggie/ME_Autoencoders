@@ -100,7 +100,7 @@ def read_image(root_dir, db, table):
 
 		folder_path = data_path + subj + "/" + vid + "/"
 		files = os.listdir(folder_path)
-
+		
 		for file in files:
 
 			temp = folder_path + file
@@ -171,9 +171,11 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 	Y = []
 	non_binarized_Y = []
 
+
 	for subj_counter in range(len(x)):
 		# train case
 		if train_phase == 'true':
+			print("TRAIN PHASE TRUE")
 			if subj_counter != sub:
 				one_frame = []
 
@@ -204,48 +206,46 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 			if subj_counter != sub:
 				one_frame = []
 				one_vid = []
+				one_vid_labels = []
 				seq_counter = 0
 
-				for each_file in x[subj_counter]:
+				for each_vid in x[subj_counter]:
 
-					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
-					image = img.img_to_array(image)
-					image = np.expand_dims(image, axis=0)
-					if net == 'res':
-						image = res_preprocess_input(image)
-					elif net == 'vgg':
-						image = preprocess_input(image)
-					image = np.transpose(image, (1, 2, 3, 0))
-					one_frame += [image]
-					
-					if seq_counter / (sequence_len) == 1:
-						one_vid = np.stack(one_vid, axis = -1)
-						one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-						# print(one_vid.shape)
-						X += [one_vid]					
-						one_vid = []
-						seq_counter = 0
-						# print(one_vid)
+					for each_file in each_vid:
+						image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+						image = img.img_to_array(image)
+						image = np.expand_dims(image, axis=0)
+						if net == 'res':
+							image = res_preprocess_input(image)
+						elif net == 'vgg':
+							image = preprocess_input(image)
+						image = np.transpose(image, (1, 2, 3, 0))
 
-					one_vid += [image]
-					seq_counter += 1
+						one_vid += [image]
+						one_vid_labels += []
+						seq_counter += 1
 
-				one_vid = np.stack(one_vid, axis = -1)
-				one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-				X += [one_vid]	
-				# print(one_vid)
-				
-				temp_y = np_utils.to_categorical(y[subj_counter], classes)
-				# non_binarized_Y += [y[subj_counter]]
+						
+						if seq_counter / (sequence_len) == 1:
+							one_vid = np.stack(one_vid, axis = -1)
+							one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+							X += [one_vid]					
+							one_vid = []
+							one_vid_labels = []
+							seq_counter = 0
+							# print(one_vid)
+										
+
+
+					temp_y = np_utils.to_categorical(y[subj_counter], classes)
+					# non_binarized_Y += [y[subj_counter]]
 
 				for item in y[subj_counter]:
 					non_binarized_Y += [item]
 
 				for each_label in temp_y:
-					# Y.append(each_label)
 					Y += [each_label]			
-					# non_binarized_Y += [y[subj_counter]]	
-				
+
 
 		# test case
 		else:
@@ -254,46 +254,59 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 				one_vid = []
 				seq_counter = 0
 
-				for each_file in x[subj_counter]:
+				for each_vid in x[subj_counter]:
+					for each_file in each_vid:
+						image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+						# print(image)
+						image = img.img_to_array(image)
+						image = np.expand_dims(image, axis=0)
+						if net == 'res':
+							image = res_preprocess_input(image)
+						elif net == 'vgg':
+							image = preprocess_input(image)
+						image = np.transpose(image, (1, 2, 3, 0))
 
-					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
-					# print(image)
-					image = img.img_to_array(image)
-					image = np.expand_dims(image, axis=0)
-					if net == 'res':
-						image = res_preprocess_input(image)
-					elif net == 'vgg':
-						image = preprocess_input(image)
-					image = np.transpose(image, (1, 2, 3, 0))
-					one_frame += [image]
+						one_vid += [image]
+						seq_counter += 1
+						
+						if seq_counter / (sequence_len) == 1:
+							one_vid = np.stack(one_vid, axis = -1)
+							one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+							# print(one_vid.shape)
+							X += [one_vid]					
+							one_vid = []
+							seq_counter = 0
+							# print(one_vid)
 
-					if seq_counter / (sequence_len) == 1:
-						one_vid = np.stack(one_vid, axis = -1)
-						one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-						# print(one_vid.shape)
-						X += [one_vid]					
-						one_vid = []
-						seq_counter = 0
-						# print(one_vid)
 
-					one_vid += [image]
-					seq_counter += 1
 
-				one_vid = np.stack(one_vid, axis = -1)
-				one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
-				X += [one_vid]	
+					# one_vid = np.stack(one_vid, axis = -1)
+					# one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
+					# X += [one_vid]	
 
-				temp_y = np_utils.to_categorical(y[subj_counter], classes)
-				for each_label in temp_y:
-					# Y.append(each_label)
-					Y += [each_label]			
-					non_binarized_Y += [y[subj_counter]]
+					temp_y = np_utils.to_categorical(y[subj_counter], classes)
+					for each_label in temp_y:
+						# Y.append(each_label)
+						Y += [each_label]			
+						non_binarized_Y += [y[subj_counter]]
 
-	X = np.stack(X, axis = 0)
+
+	X = np.asarray(X)
+	X = np.rollaxis(X, axis=4, start=1)
+	# print(X)
+	# print(X.shape)
+
+
 	Y = np.vstack(Y)
-	Y = Y[::sequence_len]
-	non_binarized_Y = non_binarized_Y[::sequence_len]
-	# print("Antoas")
+	# Y = Y[::sequence_len]
+	y = np.asarray(Y)
+	# non_binarized_Y = non_binarized_Y[::sequence_len]
+	non_binarized_Y = np.asarray(non_binarized_Y)
+	# print(X.shape)
+	# print(y)
+	# print(y.shape)
+	# print(non_binarized_Y)
+	# print(non_binarized_Y.shape)
 
 	if train_phase == 'true':
 		yield X, Y
@@ -529,9 +542,9 @@ def loading_casme_labels(root_db_path, dB):
 def loading_casme_table(root_db_path, dB):
 	subject, filename, expression_classes = loading_casme_labels(root_db_path, dB)
 	
-	subject = subject.as_matrix()
-	filename = filename.as_matrix()
-	expression_classes = expression_classes.as_matrix()
+	subject = subject.values
+	filename = filename.values
+	expression_classes = expression_classes.values
 
 	table = np.transpose( np.array( [subject, filename, expression_classes] ) )
 
@@ -541,8 +554,8 @@ def loading_casme_table(root_db_path, dB):
 
 def loading_smic_table(root_db_path, dB):
 	subject, filename, label, num_frames = loading_smic_labels(root_db_path, dB)
-	filename = filename.as_matrix()
-	label = label.as_matrix()
+	filename = filename.values
+	label = label.values
 
 	table = np.transpose( np.array( [filename, label] ) )	
 	return table	
@@ -551,10 +564,10 @@ def loading_smic_table(root_db_path, dB):
 def loading_samm_table(root_db_path, dB, objective_flag):	
 	subject, filename, label, objective_classes = loading_samm_labels(root_db_path, dB, objective_flag)
 	# print("subject:%s filename:%s label:%s objective_classes:%s" %(subject, filename, label, objective_classes))
-	subject = subject.as_matrix()
-	filename = filename.as_matrix()
-	label = label.as_matrix()
-	objective_classes = objective_classes.as_matrix()
+	subject = subject.values
+	filename = filename.values
+	label = label.values
+	objective_classes = objective_classes.values
 	table = np.transpose( np.array( [filename, label] ) )
 	table_objective = np.transpose( np.array( [subject, filename, objective_classes] ) )
 	# print(table)
@@ -718,9 +731,8 @@ def load_combined_labels(path):
 	path = path + 'combined_3dbs.csv'
 	table = pd.read_table(path, sep=',', header=None, names=['db', 'sub', 'vid', 'class'])
 	
-	# table = table[['d''sub', 'vid', 'class']]
-	table = table.as_matrix()
-	# print(len(table))
+
+	table = table.values
 
 	pivoting = [0]
 	curr_db = table[0][0]

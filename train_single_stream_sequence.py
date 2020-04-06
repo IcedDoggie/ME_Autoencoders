@@ -194,12 +194,12 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 20
+	batch_size  = 30
 	epochs = 1
 	total_samples = 0
 
 	# codes for epoch analysis
-	epochs_step = 1
+	epochs_step = 100
 	epochs = 1
 	macro_f1_list = []
 	weighted_f1_list = []
@@ -373,6 +373,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 	# print confusion matrix of highest f1
 	highest_idx = np.argmax(f1_list)
+	highest_idx = len(f1_list) - 1
 	print("Best Results: ")
 	print(tot_mat_list[highest_idx])
 	print("Micro F1: " + str(f1_list[highest_idx]))
@@ -393,7 +394,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'stitch', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

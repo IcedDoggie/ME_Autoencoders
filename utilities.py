@@ -284,11 +284,18 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 					# one_vid = np.reshape(one_vid, (one_vid.shape[0], one_vid.shape[1], one_vid.shape[2], one_vid.shape[-1]))	
 					# X += [one_vid]	
 
+				# temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				# for each_label in temp_y:
+				# 	# Y.append(each_label)
+				# 	Y += [each_label]			
+				# 	non_binarized_Y += [y[subj_counter]]
 					temp_y = np_utils.to_categorical(y[subj_counter], classes)
-					for each_label in temp_y:
-						# Y.append(each_label)
-						Y += [each_label]			
-						non_binarized_Y += [y[subj_counter]]
+
+				for item in y[subj_counter]:
+					non_binarized_Y += [item]
+
+				for each_label in temp_y:
+					Y += [each_label]							
 
 
 	X = np.asarray(X)

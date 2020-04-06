@@ -48,13 +48,21 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# /home/babeen/Documents/OULU_Datasets/Cropped
 	sys.setrecursionlimit(10000)
 
+	# path for viprlab server
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 
-	# path for laptop
-	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	root_dir = '/home/babeen/Documents/OULU_Datasets/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-		os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
+		os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
+
+
+	# # path for laptop
+	# working_dir = '/home/babeen/Documents/ME_Autoencoders/'
+	# root_dir = '/home/babeen/Documents/OULU_Datasets/'
+	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
 
 	# # general variables and path
 	# working_dir = '/home/ice/Documents/ME_Autoencoders/'
@@ -186,7 +194,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 10
+	batch_size  = 20
 	epochs = 1
 	total_samples = 0
 
@@ -247,13 +255,15 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				print(seq_y.shape)
 				# spatial model (for separate lrcn)
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
-				X = X[0:10]
-				y = y[0:10]		
+				X = X[0:batch_size]
+				y = y[0:batch_size]		
 				seq_y = y[::10]		
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
 				X = encoder.predict(X)
-				X = np.reshape(X, (int(batch_size / X.shape[0]), X.shape[0], X.shape[1]))
+				X = X[0:1000]
+				print(X.shape)
+				X = np.reshape(X, (int(batch_size / 10), 10, X.shape[1]))
 				print(X.shape)
 
 				recurrent_model.fit(X, seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
@@ -265,24 +275,29 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 			# Test Time 
 			test_loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 10)
-		
+			
 	
 			for X, y, non_binarized_y in test_loso_generator:
 				seq_y = y[::10, :]
 				print(seq_y.shape)
 				# spatial model (for separate lrcn)
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
-				X = X[0:10]
-				y = y[0:10]		
+				X = X[0:batch_size]
+				y = y[0:batch_size]		
 				seq_y = y[::10]		
 				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
 				X = encoder.predict(X)
-				X = np.reshape(X, (int(batch_size / X.shape[0]), X.shape[0], X.shape[1]))
+				X = X[0:1000]
+				X = np.reshape(X, (int(batch_size / 10), 10, X.shape[1]))
 				print(X.shape)
 
 				predicted_class = recurrent_model.predict(X)
-				predicted_class = np.argmax(predicted_class)
+				predicted_class = np.argmax(predicted_class, axis=1)
 
+				print(non_binarized_y)
+				print(non_binarized_y.shape)
+				non_binarized_y = non_binarized_y[:, 0]
+				non_binarized_y = non_binarized_y[0:2]
 				print("ROW 2 ROW 3 should be the same SANITY CHECK")
 				print(predicted_class)
 				print(non_binarized_y)	
@@ -343,7 +358,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		macro_f1 = macro_f1_list[epoch_counter]		
 		weighted_f1 = weighted_f1_list[epoch_counter]
 		loss = loss_list[epoch_counter]
-		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
+		# epoch_analysis(root_dir, train_id, 'sequence', f1, war, uar, macro_f1, weighted_f1, loss)
 
 		# print(tot_mat)
 

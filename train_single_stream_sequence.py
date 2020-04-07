@@ -261,9 +261,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
 				X = encoder.predict(X)
-				X = X[0:1000]
+				# X = X[0:1000]
 				print(X.shape)
-				X = np.reshape(X, (int(batch_size / 10), 10, X.shape[1]))
+				X = np.reshape(X, (int(len(X) / 10), 10, X.shape[1]))
 				print(X.shape)
 
 				recurrent_model.fit(X, seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
@@ -294,7 +294,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				X = encoder.predict(X)
 
 				# select better features here
-				X = X[0:1000]
+				# X = X[0:1000]
 
 				X = np.reshape(X, (len(non_binarized_y), 10, X.shape[1]))
 				print(X.shape)

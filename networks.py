@@ -485,7 +485,8 @@ def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 	temporal_encoded = temporal_model(time_encoded)
 	model = Model(inputs = x, outputs = temporal_encoded)
 
-	plot_model(model, show_shapes=True, to_file='train_res50_imagenet.png')
+	plot_model(model, show_shapes=True, to_file='train_res_sssn_lrcn.png')
+	print(model.summary())
 
 	return model
 

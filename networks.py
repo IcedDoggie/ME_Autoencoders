@@ -302,7 +302,6 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	model.load_weights('alexnet_weights.h5')
 	plot_model(model, show_shapes=True)
 
-	
 
 
 	# modify architecture
@@ -509,7 +508,7 @@ def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 
 	return model
 
-	
+
 # model = train_sssn_lrcn(timesteps_TIM=10, classes=5)
 
 # output = model.predict(frame_sequence)

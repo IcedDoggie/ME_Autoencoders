@@ -41,6 +41,7 @@ from networks import train_dual_stream_with_auxiliary_attention_networks_dual_lo
 from networks import temporal_module
 from siamese_models import euclidean_distance_loss
 from sampling_utilities import read_image_sequence
+from networks import train_res_sssn_lrcn
 
 from stitch_nets import train_shallow_alexnet_imagenet_stitch
 
@@ -48,21 +49,21 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# /home/babeen/Documents/OULU_Datasets/Cropped
 	sys.setrecursionlimit(10000)
 
-	# path for viprlab server
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	# # path for viprlab server
+	# working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	# root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	# weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 
-	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-		os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
-
-
-	# # path for laptop
-	# working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	# root_dir = '/home/babeen/Documents/OULU_Datasets/'
-	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
 	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
+
+
+	# path for laptop
+	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
+	root_dir = '/home/babeen/Documents/OULU_Datasets/'
+	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+		os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
 
 	# # general variables and path
 	# working_dir = '/home/ice/Documents/ME_Autoencoders/'
@@ -233,9 +234,6 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		# model.compile(loss=['categorical_crossentropy', euclidean_distance_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
 
-		# recurrent model
-		recurrent_model = temporal_module(data_dim=36864, timesteps_TIM = 10, classes = classes)
-		recurrent_model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 
 
 		f1_king = 0
@@ -252,26 +250,16 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 			for X, y, non_binarized_y in loso_generator:
 				seq_y = y[::10, :]
-				print(seq_y.shape)
-				# spatial model (for separate lrcn)
-				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
-				# X = X[0:batch_size]
-				# y = y[0:batch_size]		
-				seq_y = y[::10]		
-				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
-				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
-				X = encoder.predict(X)
-				# X = X[0:1000]
-				print(X.shape)
-				X = np.reshape(X, (int(batch_size / 10), 10, X.shape[1]))
-				print(X.shape)
-
-				recurrent_model.fit(X, seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
-								
+				seq_y = y[::10]
+				# print(seq_y)
+				# print(seq_y.shape)
+				# print(y)		
+				# print(y.shape)
+				model.fit(X, seq_y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 
 			# Resource Clear up
-			del X, y
+			del X, y, seq_y
 
 			# Test Time 
 			test_loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 10)
@@ -283,24 +271,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				non_binarized_y = non_binarized_y[:, 0]
 
-
 				seq_y = y[::10, :]
-
-				# spatial model (for separate lrcn)
-				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
-
 				seq_y = y[::10]		
-				encoder = Model(inputs=model.input, outputs=model.layers[-4].output)
-				X = encoder.predict(X)
+				predicted_class = model.predict(X)
 
-				# select better features here
-				# X = X[0:1000]
-
-				X = np.reshape(X, (len(non_binarized_y), 10, X.shape[1]))
-				print(X.shape)
-
-				predicted_class = recurrent_model.predict(X)
-				predicted_class = np.argmax(predicted_class, axis=1)
 
 				print(non_binarized_y)
 				print(non_binarized_y.shape)
@@ -394,7 +368,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_res_sssn_lrcn, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

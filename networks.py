@@ -472,12 +472,16 @@ def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 	return model
 
 def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
-	x = Input(shape=(10, 3, 227, 227))
+	x = Input(shape=(10, 3, 224, 224))
 
 	# spatial model
 	model = train_res50_imagenet(classes = 5, freeze_flag = 'train_all')
 	model = Model(inputs = model.input, outputs = model.layers[-2].output)
 	time_encoded = TimeDistributed(model)(x)
+
+	# layer value manipulation
+	
+
 
 	# recurrent model
 	temporal_model = temporal_module(data_dim=2048, timesteps_TIM=timesteps_TIM, classes=classes, weights_path=None)
@@ -491,7 +495,7 @@ def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 
 
 def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
-	x = Input(shape=(10, 3, 227, 227))
+	x = Input(shape=(10, 3, 224, 224))
 
 	# spatial model
 	model = train_res50_imagenet(classes = 5, freeze_flag = 'train_all')
@@ -521,10 +525,10 @@ def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 # shallow_alexnet_recurrent_network(classes=5)
 
 
-# model = train_res_sssn_lrcn(timesteps_TIM=10, classes=5)
-# frame_sequence = np.random.random(size=(1, 10, 3, 227, 227))
-# output = model.predict(frame_sequence)
-# print(output.shape)
+model = train_res_sssn_lrcn(timesteps_TIM=10, freeze_flag=None, classes=5)
+frame_sequence = np.random.random(size=(10, 10, 3, 227, 227))
+output = model.predict(frame_sequence)
+print(output.shape)
 
 
 

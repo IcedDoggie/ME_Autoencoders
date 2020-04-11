@@ -1,7 +1,7 @@
 
 
-
-# reference from pytorch
+# # squeeze and excitation function
+# #  reference from pytorch
 # def squeeze_and_excitation(feature_maps, target_maps_dim):
 # 	# squeeze and excitation
 # 	feature_maps_squeezed = torch.sum(feature_maps.view(feature_maps.size(0), feature_maps.size(1), -1), dim=2) 
@@ -17,3 +17,9 @@
 # 	#print(excitation_map.shape)
 # 	excitation_map = excitation_map.cuda()
 # 	return excitation_map
+
+
+# feature selection layer
+def feature_selection():
+
+

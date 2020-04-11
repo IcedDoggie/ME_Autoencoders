@@ -361,7 +361,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_res_sssn_lrcn, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_res_sssn_lrcn, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

@@ -30,7 +30,7 @@ from keras.applications.mobilenet import MobileNet
 from keras.applications.xception import Xception
 from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras import backend as K
-from keras.layers.core import Dense
+from keras.layers.core import Dense, Reshape
 from keras.callbacks import EarlyStopping
 from keras.models import Sequential, Model
 from keras.layers.core import Flatten, Dense, Dropout
@@ -432,7 +432,41 @@ def temporal_module(data_dim, timesteps_TIM, classes, weights_path=None):
 
 	model = Model(inputs=model.input, outputs=model.output)
 
-	return model		
+	return model	
+
+def temporal_module_dual_stream(data_dim, classes, weights_path=None):
+	input_SR_A = Input(shape=(10, data_dim))
+	input_SR_B = Input(shape=(20, data_dim))
+
+
+
+	###### TEMPORAL MODULES #######
+	temporal_module_first_SR_A = temporal_module(data_dim=36864, timesteps_TIM=10, classes=classes, weights_path=None)	
+	temporal_module_first_SR_B = temporal_module(data_dim=36864, timesteps_TIM=20, classes=classes, weights_path=None)
+
+	temporal_module_first_SR_A = Model(inputs = temporal_module_first_SR_A.input, outputs = temporal_module_first_SR_A.layers[-3].output)
+	temporal_module_first_SR_B = Model(inputs = temporal_module_first_SR_B.input, outputs = temporal_module_first_SR_B.layers[-3].output)
+
+
+	temporal_feat_SR_A = temporal_module_first_SR_A(input_SR_A)
+	temporal_feat_SR_B = temporal_module_first_SR_B(input_SR_B)
+	###############################
+
+	concat = Concatenate(axis=1)([temporal_feat_SR_A, temporal_feat_SR_B])
+	# concat = Multiply()([temporal_feat_SR_A, temporal_feat_SR_B])
+	# concat = Flatten()(concat)
+
+	dropout = Dropout(0.5)(concat)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+	model = Model(inputs = [input_SR_A, input_SR_B], outputs = prediction)
+	plot_model(model, to_file = 'temporal_module_dual_stream', show_shapes=True)
+	print(model.summary())
+
+	return model
+	
+
 
 def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 	input_gray = Input(shape=(3, 227, 227))
@@ -479,6 +513,10 @@ def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 	model = Model(inputs = model.input, outputs = model.layers[-2].output)
 	time_encoded = TimeDistributed(model)(x)
 
+	# layer value manipulation
+	
+
+
 	# recurrent model
 	temporal_model = temporal_module(data_dim=2048, timesteps_TIM=timesteps_TIM, classes=classes, weights_path=None)
 	temporal_encoded = temporal_model(time_encoded)
@@ -521,8 +559,8 @@ def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 # shallow_alexnet_recurrent_network(classes=5)
 
 
-# model = train_res_sssn_lrcn(timesteps_TIM=10, classes=5)
-# frame_sequence = np.random.random(size=(1, 10, 3, 227, 227))
+# model = train_res_sssn_lrcn(timesteps_TIM=10, freeze_flag=None, classes=5)
+# frame_sequence = np.random.random(size=(10, 10, 3, 227, 227))
 # output = model.predict(frame_sequence)
 # print(output.shape)
 
@@ -531,6 +569,6 @@ def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 
 
 
-
+# model = temporal_module_dual_stream(data_dim=36864, timesteps_TIM=10, classes=5, weights_path=None)
 
 

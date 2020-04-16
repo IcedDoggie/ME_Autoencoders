@@ -39,7 +39,7 @@ def atoi(text):
 def natural_keys(text):
 	return [ atoi(c) for c in re.split('(\d+)',text) ]
 
-def read_image_sequence(root_dir, db, table):
+def read_image_sequence(root_dir, db, table, frames_to_sample=10):
 	data_path = root_dir + db + "/" + db + "/"
 	img_list = []
 	subj_for_loso = ""
@@ -96,7 +96,7 @@ def read_image_sequence(root_dir, db, table):
 		if subj_for_loso != subj and len(img_list_subpartitioning) > 0:
 
 			subj_for_loso = subj
-			seq_img = sampling_original_cropped_sequence(files=seq_img, frames_to_sample=10)		
+			seq_img = sampling_original_cropped_sequence(files=seq_img, frames_to_sample=frames_to_sample)		
 			img_list += [seq_img]
 			label_list += [seq_label]
 			img_list_subpartitioning = []
@@ -119,12 +119,12 @@ def read_image_sequence(root_dir, db, table):
 			label_list_subpartitioning += [label]
 
 
-		label_list_subpartitioning = label_list_subpartitioning[0:10]
+		label_list_subpartitioning = label_list_subpartitioning[0:frames_to_sample]
 		seq_img += [img_list_subpartitioning]
 		seq_label += [label_list_subpartitioning]
 		
 	# push in for last subj
-	seq_img = sampling_original_cropped_sequence(files=seq_img, frames_to_sample=10)	
+	seq_img = sampling_original_cropped_sequence(files=seq_img, frames_to_sample=frames_to_sample)	
 	img_list += [seq_img]
 	label_list += [seq_label]
 
@@ -137,8 +137,8 @@ def sampling_original_cropped_sequence(files, frames_to_sample):
 		length += [len(list_of_files)]
 	# print("Minimum: %i, Maximum: %i" % (np.amin(length), np.amax(length)))
 
-	# set 10 as constant frame first
-	frames_to_sample = 10
+	# # set 10 as constant frame first
+	# frames_to_sample = frames_to_sample
 
 	for counter in range(len(files)):
 		original_sequence = files[counter]

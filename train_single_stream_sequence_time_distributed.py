@@ -30,8 +30,15 @@ from utilities import class_merging, read_image, create_generator_LOSO, class_di
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
+from networks import test_res50_finetuned, test_vgg16_finetuned, test_inceptionv3_finetuned
+from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet, train_alexnet_imagenet, train_shallow_alexnet_imagenet
+from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
+from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
+from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
+from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+from networks import temporal_module
 from siamese_models import euclidean_distance_loss
 from sampling_utilities import read_image_sequence
 from networks import train_res_sssn_lrcn
@@ -188,7 +195,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 60
+	batch_size  = 10
 	epochs = 1
 	total_samples = 0
 
@@ -361,7 +368,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_res_sssn_lrcn, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_res_sssn_lrcn, 'Side-LRCN_Experiment_1', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

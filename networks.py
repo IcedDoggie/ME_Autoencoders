@@ -421,7 +421,7 @@ def train_tri_stream_shallow_alexnet_pooling_merged(classes=5, freeze_flag=None)
 
 def temporal_module(data_dim, timesteps_TIM, classes, weights_path=None):
 	model = Sequential()
-	model.add(LSTM(128, return_sequences=False, input_shape=(timesteps_TIM, data_dim)))
+	model.add(LSTM(512, return_sequences=False, input_shape=(timesteps_TIM, data_dim)))
 	#model.add(LSTM(3000, return_sequences=False))
 	model.add(Dense(128, activation='relu'))
 	model.add(Dense(classes, activation='sigmoid'))
@@ -472,7 +472,7 @@ def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):
 	return model
 
 def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
-	x = Input(shape=(10, 3, 227, 227))
+	x = Input(shape=(10, 3, 224, 224))
 
 	# spatial model
 	model = train_res50_imagenet(classes = 5, freeze_flag = 'train_all')
@@ -491,7 +491,7 @@ def train_res_sssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 
 
 def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
-	x = Input(shape=(10, 3, 227, 227))
+	x = Input(shape=(10, 3, 224, 224))
 
 	# spatial model
 	model = train_res50_imagenet(classes = 5, freeze_flag = 'train_all')

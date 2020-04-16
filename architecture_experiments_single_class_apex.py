@@ -30,14 +30,9 @@ from utilities import class_merging, read_image, create_generator_LOSO, class_di
 from utilities import LossHistory, record_loss_accuracy
 from evaluationmatrix import fpr, weighted_average_recall, unweighted_average_recall, sklearn_macro_f1
 from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_wise_autoencoder, convolutional_autoencoder
-from networks import test_res50_finetuned, test_vgg16_finetuned, test_inceptionv3_finetuned
-from networks import train_res50_imagenet, train_vgg16_imagenet, train_inceptionv3_imagenet, train_alexnet_imagenet, train_shallow_alexnet_imagenet
-from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_imagenet
-from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet
-from networks import train_shallow_alexnet_imagenet_FCN
+from networks import train_dual_stream_shallow_alexnet, train_shallow_alexnet_imagenet
 from networks_ablation import train_shallow_inceptionv3, train_shallow_resnet50, train_shallow_vgg16
 from capsule_net import capsule_net, margin_loss
 
@@ -68,6 +63,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		timesteps_TIM = 1
 	elif feature_type == 'flow_strain_224':
 		casme2_db = 'CASME2_Flow_OS_224'
+		timesteps_TIM = 1
+	elif feature_type == 'magnified_flow':
+		casme2_db = 'CASME2_Optical_Magnified_a10'
 		timesteps_TIM = 1
 
 	classes = classes
@@ -458,7 +456,7 @@ def test(type_of_test, train_id, preprocessing_type, feature_type = 'grayscale',
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  test(test_xception_imagenet, 'xception_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = True)
 # f1_4, war_4, uar_4, tot_mat_4, macro_f1_4, weighted_f1_4 =  test(test_inceptionResV2_imagenet, 'incepres_g', feature_type = 'grayscale', db='Combined_Dataset_Apex', spatial_size = 299, tf_backend_flag = False)
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'dilated_conv', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Magnified_A', preprocessing_type=None, feature_type = 'magnified_flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_vgg16_imagenet, 'vgg16_41_fs', preprocessing_type='vgg', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_2, war_2, uar_2, tot_mat_2, macro_f1_2, weighted_f1_2 =  train(train_res50_imagenet, 'res50_23_analysis', preprocessing_type = 'res', feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 224, tf_backend_flag = False)
 # f1_3, war_3, uar_3, tot_mat_3, macro_f1_3, weighted_f1_3 =  train(train_inceptionv3_imagenet, 'incepv3_41C_fs', preprocessing_type='incepv3', feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 299, tf_backend_flag = False)

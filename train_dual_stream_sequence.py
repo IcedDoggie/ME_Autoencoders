@@ -36,8 +36,8 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
-from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+# from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
+# from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 from networks import temporal_module, temporal_module_dual_stream
 from siamese_models import euclidean_distance_loss
 from sampling_utilities import read_image_sequence
@@ -144,7 +144,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# MULTI STREAM SETTINGS (TRI STREAM)
 	casme2_2 = loading_casme_table(root_dir, casme2_db)
 	casme2_2 = class_discretization(casme2_2, 'CASME_2')
-	casme_list_2, casme_labels_2 = read_image(root_dir, casme2_db, casme2_2, frames_to_sample=20)
+	casme_list_2, casme_labels_2 = read_image_sequence(root_dir, casme2_db, casme2_2, frames_to_sample=20)
 
 	# third_db = 'CASME2_Optical_Gray_Weighted'
 	# casme2_3 = loading_casme_table(root_dir, third_db)
@@ -234,8 +234,8 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		model_SR_B.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 		# two recurrent models
-		temporal_module_dual_stream(data_dim=36864, classes = classes, weights_path=None)
-		temporal_module_dual_stream.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		temporal_model = temporal_module_dual_stream(data_dim=36864, classes = classes, weights_path=None)
+		temporal_model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 
 
 		f1_king = 0
@@ -252,11 +252,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			loso_generator_2 = create_generator_LOSO_sequence(casme_list_2, casme_labels_2, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='svc', sequence_len = 20)
 
 			for (alpha, beta) in zip(loso_generator, loso_generator_2):
-				seq_y = y[::10, :]
-				print(seq_y.shape)
+
 				########### spatial model (for separate lrcn) #################
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
+
 
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
 				X_2 = np.reshape(X_2, (int(X_2.shape[0] * X_2.shape[1]), X_2.shape[2], X_2.shape[3], X_2.shape[4]))
@@ -264,7 +264,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				# y = y[0:batch_size]		
 				seq_y = y[::10]		
 				model_SR_A.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
-				model_SR_B.fit(X_2, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				model_SR_B.fit(X_2, y_2, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				encoder_SR_A = Model(inputs=model_SR_A.input, outputs=model_SR_A.layers[-4].output)
 				encoder_SR_B = Model(inputs=model_SR_B.input, outputs=model_SR_B.layers[-4].output)
@@ -273,9 +273,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				########### Recurrent models ##############
 				X_SR_A = np.reshape(X_SR_A, (int(len(X_SR_A) / 10), 10, X_SR_A.shape[1]))
-				X_SR_B = np.reshape(X_SR_B, (int(len(X_SR_B) / 10), 10, X_SR_B.shape[1]))
+				X_SR_B = np.reshape(X_SR_B, (int(len(X_SR_B) / 20), 20, X_SR_B.shape[1]))
 
-				temporal_module_dual_stream.fit([X_SR_A, X_SR_B], seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
+				temporal_model.fit([X_SR_A, X_SR_B], seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
 
 
 
@@ -307,7 +307,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				X_SR_A = encoder_SR_A.predict(X)
 				X_SR_B = encoder_SR_B.predict(X_2)
 
-				predicted_class = temporal_module_dual_stream.predict([X_SR_A, X_SR_B])
+				predicted_class = temporal_model.predict([X_SR_A, X_SR_B])
 				predicted_class = np.argmax(predicted_class, axis=1)
 
 				print(non_binarized_y)

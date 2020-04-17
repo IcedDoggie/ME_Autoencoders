@@ -36,8 +36,8 @@ from networks import test_vgg16_imagenet, test_inceptionv3_imagenet, test_res50_
 from networks import test_vgg19_imagenet, test_mobilenet_imagenet, test_xception_imagenet, test_inceptionResV2_imagenet
 from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
-from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
-from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
+# from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
+# from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
 from siamese_models import euclidean_distance_loss
 from sampling_utilities import read_image_sequence
 
@@ -47,12 +47,20 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# /home/babeen/Documents/OULU_Datasets/Cropped
 	sys.setrecursionlimit(10000)
 
-	# path for laptop
-	working_dir = '/home/babeen/Documents/ME_Autoencoders/'
-	root_dir = '/home/babeen/Documents/OULU_Datasets/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# path for viprlab server
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders/'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
+
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
 		os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
+
+	# # path for laptop
+	# working_dir = '/home/babeen/Documents/ME_Autoencoders/'
+	# root_dir = '/home/babeen/Documents/OULU_Datasets/'
+	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )		
 
 	# # general variables and path
 	# working_dir = '/home/ice/Documents/ME_Autoencoders/'

@@ -38,7 +38,7 @@ from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
 # from networks import train_shallow_alexnet_imagenet_with_attention, train_dual_stream_shallow_alexnet, train_tri_stream_shallow_alexnet_pooling_merged, train_dual_stream_with_auxiliary_attention_networks
 # from networks import train_dual_stream_with_auxiliary_attention_networks_dual_loss, train_tri_stream_shallow_alexnet_pooling_merged_slow_fusion, train_tri_stream_shallow_alexnet_pooling_merged_latent_features
-from networks import temporal_module, temporal_module_dual_stream
+from networks import temporal_module, temporal_module_dual_stream, temporal_module_tri_stream
 from siamese_models import euclidean_distance_loss
 from sampling_utilities import read_image_sequence
 
@@ -149,6 +149,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	casme2_2 = class_discretization(casme2_2, 'CASME_2')
 	casme_list_2, casme_labels_2 = read_image_sequence(root_dir, casme2_db, casme2_2, frames_to_sample=20)
 
+	casme2_3 = loading_casme_table(root_dir, casme2_db)
+	casme2_3 = class_discretization(casme2_3, 'CASME_2')
+	casme_list_3, casme_labels_3 = read_image_sequence(root_dir, casme2_db, casme2_3, frames_to_sample=5)
+
 	# third_db = 'CASME2_Optical_Gray_Weighted'
 	# casme2_3 = loading_casme_table(root_dir, third_db)
 	# casme2_3 = class_discretization(casme2_3, 'CASME_2')
@@ -235,9 +239,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		model_SR_A.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 		model_SR_B = type_of_test(classes = classes, freeze_flag = freeze_flag)
 		model_SR_B.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
+		model_SR_C = type_of_test(classes = classes, freeze_flag = freeze_flag)
+		model_SR_C.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])
 
 		# two recurrent models
-		temporal_model = temporal_module_dual_stream(data_dim=36864, classes = classes, weights_path=None)
+		temporal_model = temporal_module_tri_stream(data_dim=36864, classes = classes, weights_path=None)
 		temporal_model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
 
 
@@ -253,32 +259,41 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			# loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 			loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='svc', sequence_len = 10)
 			loso_generator_2 = create_generator_LOSO_sequence(casme_list_2, casme_labels_2, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='svc', sequence_len = 20)
+			loso_generator_3 = create_generator_LOSO_sequence(casme_list_3, casme_labels_3, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='svc', sequence_len = 5)
 
-			for (alpha, beta) in zip(loso_generator, loso_generator_2):
+			for (alpha, beta, gamma) in zip(loso_generator, loso_generator_2, loso_generator_3):
 
 				########### spatial model (for separate lrcn) #################
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
+				X_3, y_3, non_binarized_y_3 = gamma[0], gamma[1], gamma[2]
 
 
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
 				X_2 = np.reshape(X_2, (int(X_2.shape[0] * X_2.shape[1]), X_2.shape[2], X_2.shape[3], X_2.shape[4]))
+				X_3 = np.reshape(X_3, (int(X_3.shape[0] * X_3.shape[1]), X_3.shape[2], X_3.shape[3], X_3.shape[4]))
+
 				# X = X[0:batch_size]
 				# y = y[0:batch_size]		
 				seq_y = y[::10]		
 				model_SR_A.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				model_SR_B.fit(X_2, y_2, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				model_SR_C.fit(X_3, y_3, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				encoder_SR_A = Model(inputs=model_SR_A.input, outputs=model_SR_A.layers[-4].output)
 				encoder_SR_B = Model(inputs=model_SR_B.input, outputs=model_SR_B.layers[-4].output)
+				encoder_SR_C = Model(inputs=model_SR_C.input, outputs=model_SR_C.layers[-4].output)
+
 				X_SR_A = encoder_SR_A.predict(X)
 				X_SR_B = encoder_SR_B.predict(X_2)
+				X_SR_C = encoder_SR_C.predict(X_3)
 
 				########### Recurrent models ##############
 				X_SR_A = np.reshape(X_SR_A, (int(len(X_SR_A) / 10), 10, X_SR_A.shape[1]))
 				X_SR_B = np.reshape(X_SR_B, (int(len(X_SR_B) / 20), 20, X_SR_B.shape[1]))
+				X_SR_C = np.reshape(X_SR_C, (int(len(X_SR_C) / 5), 5, X_SR_C.shape[1]))
 
-				temporal_model.fit([X_SR_A, X_SR_B], seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
+				temporal_model.fit([X_SR_A, X_SR_B, X_SR_C], seq_y, batch_size = batch_size, epochs = epochs, shuffle=False)
 
 
 
@@ -288,29 +303,33 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			# Test Time 
 			test_loso_generator = create_generator_LOSO_sequence(casme_list, casme_labels, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 10)
 			test_loso_generator_2 = create_generator_LOSO_sequence(casme_list_2, casme_labels_2, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 20)
+			test_loso_generator_3 = create_generator_LOSO_sequence(casme_list_3, casme_labels_3, classes, sub, net=preprocessing_type, spatial_size=spatial_size, train_phase='test', sequence_len = 5)
 			
 	
-			for (alpha, beta) in zip(test_loso_generator, test_loso_generator_2):
+			for (alpha, beta, gamma) in zip(test_loso_generator, test_loso_generator_2, test_loso_generator_3):
 				# loop over groundtruth
 				p_class = []
 
 				########### spatial model (for separate lrcn) #################
 				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
 				X_2, y_2, non_binarized_y_2 = beta[0], beta[1], beta[2]
+				X_3, y_3, non_binarized_y_3 = gamma[0], gamma[1], gamma[2]
 
 				non_binarized_y = non_binarized_y[:, 0]
 				seq_y = y[::10, :]				
 
 				X = np.reshape(X, (int(X.shape[0] * X.shape[1]), X.shape[2], X.shape[3], X.shape[4]))
 				X_2 = np.reshape(X_2, (int(X_2.shape[0] * X_2.shape[1]), X_2.shape[2], X_2.shape[3], X_2.shape[4]))
+				X_3 = np.reshape(X_3, (int(X_3.shape[0] * X_3.shape[1]), X_3.shape[2], X_3.shape[3], X_3.shape[4]))
 				# X = X[0:batch_size]
 				# y = y[0:batch_size]		
 				seq_y = y[::10]		
 
 				X_SR_A = encoder_SR_A.predict(X)
 				X_SR_B = encoder_SR_B.predict(X_2)
+				X_SR_C = encoder_SR_C.predict(X_3)
 
-				predicted_class = temporal_model.predict([X_SR_A, X_SR_B])
+				predicted_class = temporal_model.predict([X_SR_A, X_SR_B, X_SR_C])
 				predicted_class = np.argmax(predicted_class, axis=1)
 
 				print(non_binarized_y)
@@ -405,7 +424,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Seq_2', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Seq_2_C', preprocessing_type=None, feature_type = 'flow_sequence', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

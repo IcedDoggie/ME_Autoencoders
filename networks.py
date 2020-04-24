@@ -486,7 +486,7 @@ def temporal_module_tri_stream(data_dim, classes, weights_path=None):
 
 	temporal_feat_SR_A = temporal_module_first_SR_A(input_SR_A)
 	temporal_feat_SR_B = temporal_module_first_SR_B(input_SR_B)
-	temporal_feat_SR_C = temporal_module_first_SR_B(input_SR_C)
+	temporal_feat_SR_C = temporal_module_first_SR_C(input_SR_C)
 	###############################
 
 	concat = Concatenate(axis=1)([temporal_feat_SR_A, temporal_feat_SR_B, temporal_feat_SR_C])
@@ -526,8 +526,8 @@ def temporal_module_quad_stream(data_dim, classes, weights_path=None):
 
 	temporal_feat_SR_A = temporal_module_first_SR_A(input_SR_A)
 	temporal_feat_SR_B = temporal_module_first_SR_B(input_SR_B)
-	temporal_feat_SR_C = temporal_module_first_SR_B(input_SR_C)
-	temporal_feat_SR_D = temporal_module_first_SR_B(input_SR_D)
+	temporal_feat_SR_C = temporal_module_first_SR_C(input_SR_C)
+	temporal_feat_SR_D = temporal_module_first_SR_D(input_SR_D)
 	###############################
 
 	concat = Concatenate(axis=1)([temporal_feat_SR_A, temporal_feat_SR_B, temporal_feat_SR_C, temporal_feat_SR_D])

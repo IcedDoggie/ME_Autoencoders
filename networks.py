@@ -467,16 +467,16 @@ def temporal_module_dual_stream(data_dim, classes, weights_path=None):
 	return model
 
 def temporal_module_tri_stream(data_dim, classes, weights_path=None):
-	input_SR_A = Input(shape=(10, data_dim))
-	input_SR_B = Input(shape=(20, data_dim))
-	input_SR_C = Input(shape=(5, data_dim))
+	input_SR_A = Input(shape=(10, 57600))
+	input_SR_B = Input(shape=(20, 57600))
+	input_SR_C = Input(shape=(5, 57600))
 
 
 
 	###### TEMPORAL MODULES #######
-	temporal_module_first_SR_A = temporal_module(data_dim=36864, timesteps_TIM=10, classes=classes, weights_path=None)	
-	temporal_module_first_SR_B = temporal_module(data_dim=36864, timesteps_TIM=20, classes=classes, weights_path=None)
-	temporal_module_first_SR_C = temporal_module(data_dim=36864, timesteps_TIM=5, classes=classes, weights_path=None)
+	temporal_module_first_SR_A = temporal_module(data_dim=57600, timesteps_TIM=10, classes=classes, weights_path=None)	
+	temporal_module_first_SR_B = temporal_module(data_dim=57600, timesteps_TIM=20, classes=classes, weights_path=None)
+	temporal_module_first_SR_C = temporal_module(data_dim=57600, timesteps_TIM=5, classes=classes, weights_path=None)
 
 
 	temporal_module_first_SR_A = Model(inputs = temporal_module_first_SR_A.input, outputs = temporal_module_first_SR_A.layers[-3].output)
@@ -504,18 +504,18 @@ def temporal_module_tri_stream(data_dim, classes, weights_path=None):
 	return model	
 
 def temporal_module_quad_stream(data_dim, classes, weights_path=None):
-	input_SR_A = Input(shape=(10, data_dim))
-	input_SR_B = Input(shape=(20, data_dim))
-	input_SR_C = Input(shape=(5, data_dim))
-	input_SR_D = Input(shape=(15, data_dim))
+	input_SR_A = Input(shape=(10, 57600))
+	input_SR_B = Input(shape=(20, 57600))
+	input_SR_C = Input(shape=(5, 57600))
+	input_SR_D = Input(shape=(15, 57600))
 
 
 
 	###### TEMPORAL MODULES #######
-	temporal_module_first_SR_A = temporal_module(data_dim=36864, timesteps_TIM=10, classes=classes, weights_path=None)	
-	temporal_module_first_SR_B = temporal_module(data_dim=36864, timesteps_TIM=20, classes=classes, weights_path=None)
-	temporal_module_first_SR_C = temporal_module(data_dim=36864, timesteps_TIM=5, classes=classes, weights_path=None)
-	temporal_module_first_SR_D = temporal_module(data_dim=36864, timesteps_TIM=15, classes=classes, weights_path=None)
+	temporal_module_first_SR_A = temporal_module(data_dim=57600, timesteps_TIM=10, classes=classes, weights_path=None)	
+	temporal_module_first_SR_B = temporal_module(data_dim=57600, timesteps_TIM=20, classes=classes, weights_path=None)
+	temporal_module_first_SR_C = temporal_module(data_dim=57600, timesteps_TIM=5, classes=classes, weights_path=None)
+	temporal_module_first_SR_D = temporal_module(data_dim=57600, timesteps_TIM=15, classes=classes, weights_path=None)
 
 
 	temporal_module_first_SR_A = Model(inputs = temporal_module_first_SR_A.input, outputs = temporal_module_first_SR_A.layers[-3].output)

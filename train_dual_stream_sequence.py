@@ -107,6 +107,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	elif feature_type == 'original':
 		casme2_db = 'CASMEII_Cropped_RGB'
 
+
+	elif feature_type =='flow_sequence':
+		casme2_db = 'CASMEII_Cropped_Flow'
+
+
 	classes = classes
 	spatial_size = spatial_size
 	channels = 5
@@ -265,9 +270,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				seq_y = y[::10]		
 				model_SR_A.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 				model_SR_B.fit(X_2, y_2, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
+				# model_SR_A.fit(X_2, y_2, batch_size = batch_size, epochs = epochs, shuffle = False, callbacks=[history])
 
 				encoder_SR_A = Model(inputs=model_SR_A.input, outputs=model_SR_A.layers[-4].output)
 				encoder_SR_B = Model(inputs=model_SR_B.input, outputs=model_SR_B.layers[-4].output)
+				# encoder_SR_A = Model(inputs=model_SR_A.input, outputs=model_SR_A.layers[-4].output)
 				X_SR_A = encoder_SR_A.predict(X)
 				X_SR_B = encoder_SR_B.predict(X_2)
 
@@ -306,6 +313,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				X_SR_A = encoder_SR_A.predict(X)
 				X_SR_B = encoder_SR_B.predict(X_2)
+				# X_SR_B = encoder_SR_A.predict(X_2)
+
+				X_SR_A = np.reshape(X_SR_A, (int(len(X_SR_A) / 10), 10, X_SR_A.shape[1]))
+				X_SR_B = np.reshape(X_SR_B, (int(len(X_SR_B) / 20), 20, X_SR_B.shape[1]))
 
 				predicted_class = temporal_model.predict([X_SR_A, X_SR_B])
 				predicted_class = np.argmax(predicted_class, axis=1)
@@ -356,10 +367,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				y_list_list[epoch_counter] = y_list
 
 			# save the maximum epoch only (replace with maximum f1)
+
 			if f1 > f1_king:
 				f1_king = f1
 				weights_name = weights_path + str(sub) + '.h5'
-				model.save_weights(weights_name)
+				# model.save_weights(weights_name) 
 
 			# Resource CLear up
 			del X, y, non_binarized_y
@@ -402,7 +414,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 # f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_dual_stream_shallow_alexnet, 'shallow_alexnet_multi_38J', preprocessing_type=None, feature_type = 'flow_strain', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=3)
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Seq_2', preprocessing_type=None, feature_type = 'original', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'Seq_2_B', preprocessing_type=None, feature_type = 'flow_sequence', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 
 print("RESULTS FOR shallow alex multi-stream")
 print("F1: " + str(f1))

@@ -105,6 +105,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	elif feature_type == 'original':
 		casme2_db = 'CASMEII_Cropped_RGB'
 
+
 	classes = classes
 	spatial_size = spatial_size
 	channels = 5

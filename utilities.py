@@ -83,6 +83,15 @@ def read_image(root_dir, db, table):
 				label = item[-1]
 			vid = item[1]
 
+		elif 'ratio' in db:
+			if 'sub' not in item[0]:
+				subj = "sub" + item[0]
+				label = item[-1] - 1
+			else:
+				subj = item[0]
+				label = item[-1]
+			vid = item[1]
+
 
 		# initialization
 		if subj_for_loso == "":

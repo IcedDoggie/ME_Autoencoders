@@ -465,7 +465,84 @@ def temporal_module_dual_stream(data_dim, classes, weights_path=None):
 	print(model.summary())
 
 	return model
-	
+
+def temporal_module_tri_stream(data_dim, classes, weights_path=None):
+	input_SR_A = Input(shape=(10, data_dim))
+	input_SR_B = Input(shape=(20, data_dim))
+	input_SR_C = Input(shape=(5, data_dim))
+
+
+
+	###### TEMPORAL MODULES #######
+	temporal_module_first_SR_A = temporal_module(data_dim=36864, timesteps_TIM=10, classes=classes, weights_path=None)	
+	temporal_module_first_SR_B = temporal_module(data_dim=36864, timesteps_TIM=20, classes=classes, weights_path=None)
+	temporal_module_first_SR_C = temporal_module(data_dim=36864, timesteps_TIM=5, classes=classes, weights_path=None)
+
+
+	temporal_module_first_SR_A = Model(inputs = temporal_module_first_SR_A.input, outputs = temporal_module_first_SR_A.layers[-3].output)
+	temporal_module_first_SR_B = Model(inputs = temporal_module_first_SR_B.input, outputs = temporal_module_first_SR_B.layers[-3].output)
+	temporal_module_first_SR_C = Model(inputs = temporal_module_first_SR_C.input, outputs = temporal_module_first_SR_C.layers[-3].output)
+
+
+	temporal_feat_SR_A = temporal_module_first_SR_A(input_SR_A)
+	temporal_feat_SR_B = temporal_module_first_SR_B(input_SR_B)
+	temporal_feat_SR_C = temporal_module_first_SR_B(input_SR_C)
+	###############################
+
+	concat = Concatenate(axis=1)([temporal_feat_SR_A, temporal_feat_SR_B, temporal_feat_SR_C])
+	# concat = Multiply()([temporal_feat_SR_A, temporal_feat_SR_B])
+	# concat = Flatten()(concat)
+
+	dropout = Dropout(0.5)(concat)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+	model = Model(inputs = [input_SR_A, input_SR_B, input_SR_C], outputs = prediction)
+	plot_model(model, to_file = 'temporal_module_tri_stream', show_shapes=True)
+	print(model.summary())
+
+	return model	
+
+def temporal_module_quad_stream(data_dim, classes, weights_path=None):
+	input_SR_A = Input(shape=(10, data_dim))
+	input_SR_B = Input(shape=(20, data_dim))
+	input_SR_C = Input(shape=(5, data_dim))
+	input_SR_D = Input(shape=(15, data_dim))
+
+
+
+	###### TEMPORAL MODULES #######
+	temporal_module_first_SR_A = temporal_module(data_dim=36864, timesteps_TIM=10, classes=classes, weights_path=None)	
+	temporal_module_first_SR_B = temporal_module(data_dim=36864, timesteps_TIM=20, classes=classes, weights_path=None)
+	temporal_module_first_SR_C = temporal_module(data_dim=36864, timesteps_TIM=5, classes=classes, weights_path=None)
+	temporal_module_first_SR_D = temporal_module(data_dim=36864, timesteps_TIM=15, classes=classes, weights_path=None)
+
+
+	temporal_module_first_SR_A = Model(inputs = temporal_module_first_SR_A.input, outputs = temporal_module_first_SR_A.layers[-3].output)
+	temporal_module_first_SR_B = Model(inputs = temporal_module_first_SR_B.input, outputs = temporal_module_first_SR_B.layers[-3].output)
+	temporal_module_first_SR_C = Model(inputs = temporal_module_first_SR_C.input, outputs = temporal_module_first_SR_C.layers[-3].output)
+	temporal_module_first_SR_D = Model(inputs = temporal_module_first_SR_D.input, outputs = temporal_module_first_SR_D.layers[-3].output)
+
+
+	temporal_feat_SR_A = temporal_module_first_SR_A(input_SR_A)
+	temporal_feat_SR_B = temporal_module_first_SR_B(input_SR_B)
+	temporal_feat_SR_C = temporal_module_first_SR_B(input_SR_C)
+	temporal_feat_SR_D = temporal_module_first_SR_B(input_SR_D)
+	###############################
+
+	concat = Concatenate(axis=1)([temporal_feat_SR_A, temporal_feat_SR_B, temporal_feat_SR_C, temporal_feat_SR_D])
+	# concat = Multiply()([temporal_feat_SR_A, temporal_feat_SR_B])
+	# concat = Flatten()(concat)
+
+	dropout = Dropout(0.5)(concat)
+	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', name='last_fc')(dropout)
+
+	prediction = Activation("softmax", name = 'softmax_activate')(dense_1)
+	model = Model(inputs = [input_SR_A, input_SR_B, input_SR_C, input_SR_D], outputs = prediction)
+	plot_model(model, to_file = 'temporal_module_quad_stream', show_shapes=True)
+	print(model.summary())
+
+	return model		
 
 
 def train_dssn_merging_with_sssn(classes=5, freeze_flag=None):

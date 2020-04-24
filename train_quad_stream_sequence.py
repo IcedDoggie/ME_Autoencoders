@@ -347,6 +347,12 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				X_SR_C = encoder_SR_C.predict(X_3)
 				X_SR_D = encoder_SR_D.predict(X_4)
 
+				########### Recurrent models ##############
+				X_SR_A = np.reshape(X_SR_A, (int(len(X_SR_A) / 10), 10, X_SR_A.shape[1]))
+				X_SR_B = np.reshape(X_SR_B, (int(len(X_SR_B) / 20), 20, X_SR_B.shape[1]))
+				X_SR_C = np.reshape(X_SR_C, (int(len(X_SR_C) / 5), 5, X_SR_C.shape[1]))
+				X_SR_D = np.reshape(X_SR_D, (int(len(X_SR_D) / 15), 15, X_SR_D.shape[1]))				
+
 				predicted_class = temporal_model.predict([X_SR_A, X_SR_B, X_SR_C, X_SR_D])
 				predicted_class = np.argmax(predicted_class, axis=1)
 

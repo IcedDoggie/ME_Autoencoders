@@ -387,7 +387,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			if f1 > f1_king:
 				f1_king = f1
 				weights_name = weights_path + str(sub) + '.h5'
-				model.save_weights(weights_name)
+				# model.save_weights(weights_name)
 
 			# Resource CLear up
 			del X, y, non_binarized_y

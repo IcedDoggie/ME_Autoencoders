@@ -29,6 +29,7 @@ from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
 from keras.applications.resnet50 import preprocess_input as res_preprocess_input
 
+from simple_test_image_cutting import cut_algorithm_call_all
 
 from labelling import collectinglabel
 from reordering import readinput
@@ -333,64 +334,42 @@ def create_generator_LOSO_sequence(x, y, classes, sub, net='vgg', spatial_size=2
 		yield X, Y, non_binarized_Y
 
 
-
-def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true'):
+def create_generator_LOSO_image_cutting_augmentation(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true'):
 	# Note: Test will be done separately from Training
 
 	# Filter out only Training Images and Labels
 
-
-	
 	# Read and Yield
 	X = []
 	Y = []
 	non_binarized_Y = []
 
 	for subj_counter in range(len(x)):
-		# train case
-		if train_phase == 'true':
-			if subj_counter != sub:
-				for each_file in x[subj_counter]:
 
+		if train_phase == 'svc':
+			if subj_counter != sub:
+				for file_counter in range(len(x[subj_counter])):
+					each_file = (x[subj_counter])[file_counter]
 					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
 					image = img.img_to_array(image)
 
 					image = np.expand_dims(image, axis=0)
-					if net == 'res':
-						image = res_preprocess_input(image)
-					elif net == 'vgg':
-						image = preprocess_input(image)
-					X += [image]
 
-				temp_y = np_utils.to_categorical(y[subj_counter], classes)
-				for each_label in temp_y:
-					# Y.append(each_label)
-					Y += [each_label]
+					# codes for augmentation
+					aug_img_arr = cut_algorithm_call_all(cut_interval=[2, 4], spatial_size=spatial_size, img=image)
+					
+					for single_img in aug_img_arr:
+						if net == 'res':
+							image = res_preprocess_input(single_img)
+						elif net == 'vgg':
+							image = preprocess_input(single_img)
+						X += [image]
 
-		# for svc case
-		elif train_phase == 'svc':
-			if subj_counter != sub:
-				for each_file in x[subj_counter]:
+						temp_y = np_utils.to_categorical(y[subj_counter], classes)
+						non_binarized_Y += [ (y[subj_counter])[file_counter] ]
+						Y += [temp_y[file_counter]]
 
-					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
-					image = img.img_to_array(image)
-					image = np.expand_dims(image, axis=0)
-					if net == 'res':
-						image = res_preprocess_input(image)
-					elif net == 'vgg':
-						image = preprocess_input(image)
-					X += [image]
-
-				temp_y = np_utils.to_categorical(y[subj_counter], classes)
-				# non_binarized_Y += [y[subj_counter]]
-
-				for item in y[subj_counter]:
-					non_binarized_Y += [item]
-
-				for each_label in temp_y:
-					# Y.append(each_label)
-					Y += [each_label]			
-					# non_binarized_Y += [y[subj_counter]]	
+		
 
 		# test case
 		else:
@@ -410,17 +389,77 @@ def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train
 
 				temp_y = np_utils.to_categorical(y[subj_counter], classes)
 				for each_label in temp_y:
-					# Y.append(each_label)
 					Y += [each_label]			
 					non_binarized_Y += [y[subj_counter]]
 
 	X = np.vstack(X)
 	Y = np.vstack(Y)
-	# print("Antoas")
 
-	if train_phase == 'true':
-		yield X, Y
-	elif train_phase == 'svc':
+	if train_phase == 'svc':
+		yield X, Y, non_binarized_Y
+	else:
+		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn
+		yield X, Y, non_binarized_Y
+
+
+def create_generator_LOSO(x, y, classes, sub, net='vgg', spatial_size=224, train_phase='true'):
+	# Note: Test will be done separately from Training
+
+	# Filter out only Training Images and Labels
+
+	# Read and Yield
+	X = []
+	Y = []
+	non_binarized_Y = []
+
+	for subj_counter in range(len(x)):
+
+		if train_phase == 'svc':
+			if subj_counter != sub:
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					image = img.img_to_array(image)
+					image = np.expand_dims(image, axis=0)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					elif net == 'vgg':
+						image = preprocess_input(image)
+					X += [image]
+
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+
+				for item in y[subj_counter]:
+					non_binarized_Y += [item]
+
+				for each_label in temp_y:
+					Y += [each_label]			
+
+		# test case
+		else:
+			if subj_counter == sub:
+				# print(x)
+				for each_file in x[subj_counter]:
+
+					image = img.load_img(each_file, target_size=(spatial_size, spatial_size))
+					# print(image)
+					image = img.img_to_array(image)
+					image = np.expand_dims(image, axis=0)
+					if net == 'res':
+						image = res_preprocess_input(image)
+					elif net == 'vgg':
+						image = preprocess_input(image)
+					X += [image]
+
+				temp_y = np_utils.to_categorical(y[subj_counter], classes)
+				for each_label in temp_y:
+					Y += [each_label]			
+					non_binarized_Y += [y[subj_counter]]
+
+	X = np.vstack(X)
+	Y = np.vstack(Y)
+
+	if train_phase == 'svc':
 		yield X, Y, non_binarized_Y
 	else:
 		non_binarized_Y = np.vstack(non_binarized_Y) # for sklearn

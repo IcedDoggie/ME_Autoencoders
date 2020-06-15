@@ -299,8 +299,8 @@ def train_alexnet_imagenet(classes = 5):
 
 def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	model = alexnet(input_shape = (3, 227, 227), nb_classes = 1000, mean_flag = True)
-	model.load_weights('alexnet_weights.h5')
-	plot_model(model, show_shapes=True)
+	model.load_weights('./weights/alexnet_weights.h5')
+	plot_model(model, show_shapes=True, to_file='./net_images/alexnet.png')
 
 
 
@@ -318,8 +318,8 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 
 	################# Use 2 conv with weights ######################
 	conv_2 = model.layers[13].output
-	conv_2 = Flatten(name = 'flatten')(conv_2)
-	conv_2 = Dropout(0.5)(conv_2)
+	conv_2_flatten = Flatten(name = 'flatten')(conv_2)
+	conv_2 = Dropout(0.5)(conv_2_flatten)
 	################################################################
 
 	# ##### FC for experiments #####
@@ -335,8 +335,15 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	dense_1 = Dense(classes, kernel_initializer = 'he_normal', bias_initializer = 'he_normal')(conv_2)
 	prediction = Activation("softmax")(dense_1)
 
+
+	# return only the classes
 	model = Model(inputs = model.input, outputs = prediction)		
-	plot_model(model, show_shapes = True, to_file='shallowalex.png')
+
+
+	# return the feature vector
+	model = Model(inputs = model.input, outputs = [prediction, conv_2_flatten])
+
+	plot_model(model, show_shapes = True, to_file='./net_images/shallowalex.png')
 	# print(model.summary())
 	return model
 
@@ -648,4 +655,6 @@ def train_res_dssn_lrcn(classes, freeze_flag, timesteps_TIM=10):
 
 # model = temporal_module_dual_stream(data_dim=36864, timesteps_TIM=10, classes=5, weights_path=None)
 
+# model = train_shallow_alexnet_imagenet()
 
+# print(model.summary())

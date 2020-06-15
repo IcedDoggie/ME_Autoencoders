@@ -29,10 +29,10 @@ from keras.preprocessing import image as img
 from keras.applications.vgg16 import preprocess_input
 from keras.applications.resnet50 import preprocess_input as res_preprocess_input
 
-from simple_test_image_cutting import cut_algorithm_call_all
+# from simple_test_image_cutting import cut_algorithm_call_all
 
 from labelling import collectinglabel
-from reordering import readinput
+# from reordering import readinput
 from evaluationmatrix import fpr
 import itertools
 # from pynvml.pynvml import *

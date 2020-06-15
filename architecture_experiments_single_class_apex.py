@@ -34,24 +34,26 @@ from evaluationmatrix import majority_vote, temporal_predictions_averaging
 from utilities import epoch_analysis
 from networks import train_dual_stream_shallow_alexnet, train_shallow_alexnet_imagenet
 from networks_ablation import train_shallow_inceptionv3, train_shallow_resnet50, train_shallow_vgg16
-from capsule_net import capsule_net, margin_loss
+# from capsule_net import capsule_net, margin_loss
+
+from losses import e2_keras, earth_mover_loss
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
 	# general variables and path
-	working_dir = '/home/viprlab/Documents/ME_Autoencoders'
-	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
-	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
-
-	# # path for babeen
-	# working_dir = '/home/babeen/Documents/ME_Autoencoders'
-	# root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
-	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# working_dir = '/home/viprlab/Documents/ME_Autoencoders'
+	# root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
+	# weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
+
+	# path for babeen
+	working_dir = '/home/babeen/Documents/ME_Autoencoders'
+	root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
+	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+		os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
 
 	weights_path = weights_path + "Weights/" + train_id + "/"
 
@@ -128,7 +130,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 30
+	batch_size  = 2
 	epochs = 100
 	total_samples = 0
 
@@ -174,8 +176,11 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-		model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		model.compile(loss=['categorical_crossentropy', earth_mover_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		f1_king = 0
+
+		mean_e2 = np.zeros((classes))
+
 		# epoch by epoch
 		for epoch_counter in range(epochs_step):
 			tot_mat = tot_mat_list[epoch_counter]
@@ -184,11 +189,18 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			print("Current Training Epoch: " + str(epochs))
 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-			loso_generator = create_generator_LOSO_image_cutting_augmentation(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+
+			# current mean (non-accumulative)
+			# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(loso_generator), axis=1)
+			# print(helper_mean_e2)
+			# print(helper_mean_e2.shape)
 
 			for X, y, non_binarized_y in loso_generator:
-
+				# helper_mean_e2 = np.reshape(mean_e2, (1, classes))
+				# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(X), axis=0)
 				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+				
 
 				# svm
 				if classifier_flag == 'svc':
@@ -205,12 +217,24 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 					clf.fit(spatial_features, non_binarized_y)
 
+			# # compute mean and do mean assignment
+			# y_argmax, y_curr_feat = model.predict(X)
+			# y_argmax = np.argmax(y_argmax, axis=1)
+			# for feat_counter in range(len(y_curr_feat)):
+			# 	curr_y_argmax = y_argmax[feat_counter]
+			# 	curr_y_feat = y_curr_feat[feat_counter]
+			# 	mean_e2[curr_y_argmax] += np.mean(curr_y_feat)
+			# # normalize
+			# mean_e2 = (mean_e2 - np.amin(mean_e2)) / (np.amax(mean_e2) - np.amin(mean_e2))
+			# print(mean_e2)
+
+
 
 			# Resource Clear up
 			del X, y
 
 			# Test Time 
-			test_loso_generator = create_generator_LOSO_image_cutting_augmentation(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
 			for X, y, non_binarized_y in test_loso_generator:
@@ -224,7 +248,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 				# softmax
 				elif classifier_flag == 'softmax':
-					spatial_features = model.predict(X)
+					# spatial_features = model.predict(X)
+					spatial_features, spatial_vector = model.predict(X)
+
 					predicted_class = np.argmax(spatial_features, axis=1)
 
 				

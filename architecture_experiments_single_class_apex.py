@@ -42,7 +42,7 @@ from utilities import compute_distribution, compute_distribution_OS
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
-	# general variables and path
+	# # general variables and path
 	# working_dir = '/home/viprlab/Documents/ME_Autoencoders'
 	# root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
 	# weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
@@ -107,6 +107,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	# samm_table = class_discretization(samm_table, 'SAMM')
 	# smic_table = smic_table[0]
 
+	casme2_OS = loading_casme_table(root_dir, 'CASME2_Strain')
+	casme2_OS = class_discretization(casme2_OS, 'CASME_2')
+	casme2_OS_list, _ = read_image(root_dir, 'CASME2_Strain', casme2_OS)
 
 
 	# images reading, read according to table
@@ -195,16 +198,19 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
 			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
-
+			OS_loso_generator = create_generator_LOSO(casme2_OS_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 			# current mean (non-accumulative)
 			# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(loso_generator), axis=1)
 			# print(helper_mean_e2)
 			# print(helper_mean_e2.shape)
 
-			for X, y, non_binarized_y in loso_generator:
+			# for X, y, non_binarized_y in loso_generator:
+			for (alpha, beta) in zip(loso_generator, OS_loso_generator):
+				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+				X_2, _, _ = beta[0], beta[1], beta[2]				
 				# helper_mean_e2 = np.reshape(mean_e2, (1, classes))
 				# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(X), axis=0)
-				strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X)
+				strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X_2)
 
 				model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
 				
@@ -344,5 +350,5 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_emd', preprocessing_type=None, feature_type = 'strain_only', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_emd', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 

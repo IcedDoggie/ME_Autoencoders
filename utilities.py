@@ -37,6 +37,11 @@ from evaluationmatrix import fpr
 import itertools
 # from pynvml.pynvml import *
 
+import tensorflow as tf
+from sklearn.decomposition import PCA
+import imblearn.under_sampling as under_sampling
+import matplotlib.pyplot as plt
+
 def read_image(root_dir, db, table):
 	data_path = root_dir + db + "/" + db + "/"
 	img_list = []
@@ -808,3 +813,74 @@ def load_combined_labels(path):
 	return casme_table, samm_table, smic_table
 
 
+def compute_distribution(X):
+
+	# initialize under-sampler
+	# to be done
+
+	# vectorize X array
+	X = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
+
+	# normalize the distribution to range of [0, 1]
+	X = ( (X - np.amin(X)) / (np.amax(X) - np.amin(X)) )
+	print(X)
+	print(X.shape)
+
+	# # channel by channel pca
+	# X_B = X
+	# X_G
+	# X_R
+
+	number_of_samples_X = X.shape[0]
+	pca = PCA(n_components=2)
+	rand_X_test = pca.fit_transform(X)
+	print(rand_X_test)
+	print(rand_X_test.shape)
+	pca_X = []
+	for item in X:
+		item = item.reshape((1, -1))
+		item = pca.fit_transform(item)
+		pca_X += [item]
+	X = np.vstack(pca_X)
+	print(X.shape)
+
+	distrib_X = tf.random.categorical(logits = X, num_samples=number_of_samples_X)
+	print(distrib_X)
+	print(distrib_X.shape)
+
+	return distrib_X
+
+
+def compute_distribution_OS(X):
+	# initialize PCA
+	# 24 components
+	pca_components = 24
+	pca = PCA(n_components=pca_components)
+
+	# since it's OS with only b & w strands, we can just take the first channel
+	X = X[:, 0, :, :]
+
+	pca_X = []
+	pca_y = []
+
+	# index and reshape
+	x_dim = X[:, :, 0]
+	y_dim = X[:, 0, :]
+
+	# apply pca
+	dim_reduce_X = pca.fit_transform(x_dim)
+	dim_reduce_y = pca.fit_transform(y_dim)
+
+	# normalization
+	dim_reduce_X = ( (dim_reduce_X - np.amin(dim_reduce_X)) / (np.amax(dim_reduce_X) - np.amin(dim_reduce_X)) )
+	dim_reduce_y = ( (dim_reduce_y - np.amin(dim_reduce_y)) / (np.amax(dim_reduce_y) - np.amin(dim_reduce_y)) )
+
+
+	# # draw distribution for each normalized logits
+	# distrib_X = tf.random.categorical(logits = dim_reduce_X, num_samples=dim_reduce_X.shape[1])
+	# distrib_y = tf.random.categorical(logits = dim_reduce_y, num_samples=dim_reduce_y.shape[1])
+
+	distrib_X = dim_reduce_X
+	distrib_y = dim_reduce_y
+
+	return distrib_X, distrib_y	

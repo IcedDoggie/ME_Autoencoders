@@ -37,6 +37,7 @@ from networks_ablation import train_shallow_inceptionv3, train_shallow_resnet50,
 # from capsule_net import capsule_net, margin_loss
 
 from losses import e2_keras, earth_mover_loss
+from utilities import compute_distribution, compute_distribution_OS
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
@@ -85,6 +86,10 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	elif feature_type == 'magnified_RGB_YT_30':
 		casme2_db = 'ratio_30_apex'
 		timesteps_TIM = 1		
+
+	elif feature_type == 'strain_only':
+		casme2_db = 'CASME2_Strain'
+		timesteps_TIM = 1
 
 
 
@@ -176,7 +181,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 
 
 
-		model.compile(loss=['categorical_crossentropy', earth_mover_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
+		model.compile(loss=['categorical_crossentropy', earth_mover_loss, earth_mover_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		f1_king = 0
 
 		mean_e2 = np.zeros((classes))
@@ -199,7 +204,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 			for X, y, non_binarized_y in loso_generator:
 				# helper_mean_e2 = np.reshape(mean_e2, (1, classes))
 				# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(X), axis=0)
-				model.fit(X, y, batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+				strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X)
+
+				model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
 				
 
 				# svm
@@ -249,7 +256,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				# softmax
 				elif classifier_flag == 'softmax':
 					# spatial_features = model.predict(X)
-					spatial_features, spatial_vector = model.predict(X)
+					spatial_features, spatial_vector, _ = model.predict(X)
 
 					predicted_class = np.argmax(spatial_features, axis=1)
 
@@ -337,5 +344,5 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
 
-f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'interval_cutting_augmentation', preprocessing_type=None, feature_type = 'flow', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
+f1, war, uar, tot_mat, macro_f1, weighted_f1 =  train(train_shallow_alexnet_imagenet, 'test_emd', preprocessing_type=None, feature_type = 'strain_only', db='Combined_Dataset_Apex_Flow', spatial_size = 227, classifier_flag='softmax', tf_backend_flag = False, attention = False, freeze_flag=None, classes=5)
 

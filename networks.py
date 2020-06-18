@@ -54,6 +54,16 @@ from models import VGG_16, temporal_module, layer_wise_conv_autoencoder, layer_w
 from models import tensor_reshape, attention_control, att_shape, l2_normalize, l2_normalize_output_shape, repeat_element_autofeat
 from models import alexnet_dilation
 
+import tensorflow as tf
+from sklearn.decomposition import PCA
+
+def sort_layer(input, k):
+	return tf.nn.top_k(input, k=k, sorted=True).indices
+
+def select_top_layer(input, top_indices):
+	return K.gather(input, np.arange(top_indices))
+
+
 def test_res50_imagenet(weights_name = 'imagenet'):
 	resnet50 = ResNet50(weights = 'imagenet')
 	resnet50 = Model(inputs = resnet50.input, outputs = resnet50.layers[-2].output)
@@ -336,12 +346,24 @@ def train_shallow_alexnet_imagenet(classes = 5, freeze_flag = None):
 	prediction = Activation("softmax")(dense_1)
 
 
-	# return only the classes
-	model = Model(inputs = model.input, outputs = prediction)		
+	# construct layer to pca and quantize feature vector
+	# initialize pca
+	# detour: use squeeze and excitation to reduce dimensionality, the val is shared for both hori. and vert.
+	# this is not SE as it doesnt multiply back to the convolutional layers
+	# select_top = Lambda(lambda x: K.in_top_k())(conv_2_flatten)	
+	# squeeze = Lambda(sort_layer, input_shape=(57600, ), arguments={'k': 57600})
+	# excitation = Lambda(select_top_layer, arguments={'top_indices': 24})
+	# subsampled_conv_2 = squeeze(conv_2_flatten)
+	# subsampled_conv_2 = excitation(subsampled_conv_2)
+	fc_feat = Dense(24, kernel_initializer = 'he_normal', bias_initializer = 'he_normal', activation='relu')(conv_2_flatten)
+
+
+	# # return only the classes
+	# model = Model(inputs = model.input, outputs = prediction)		
 
 
 	# return the feature vector
-	model = Model(inputs = model.input, outputs = [prediction, conv_2_flatten])
+	model = Model(inputs = model.input, outputs = [prediction, fc_feat, fc_feat])
 
 	plot_model(model, show_shapes = True, to_file='./net_images/shallowalex.png')
 	# print(model.summary())

@@ -38,23 +38,25 @@ from networks_ablation import train_shallow_inceptionv3, train_shallow_resnet50,
 
 from losses import e2_keras, earth_mover_loss
 from utilities import compute_distribution, compute_distribution_OS
+import lera
+from lera.keras import LeraCallback
 
 def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 'grayscale', db='Combined_Dataset_Apex_Flow', spatial_size = 224, classifier_flag = 'svc', tf_backend_flag = False, attention=False, freeze_flag = 'last'):
 
 	sys.setrecursionlimit(10000)
-	# # general variables and path
-	# working_dir = '/home/viprlab/Documents/ME_Autoencoders'
-	# root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
-	# weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
-	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
-
-	# path for babeen
-	working_dir = '/home/babeen/Documents/ME_Autoencoders'
-	root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
-	weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# general variables and path
+	working_dir = '/home/viprlab/Documents/ME_Autoencoders'
+	root_dir = '/media/viprlab/01D31FFEF66D5170/Ice/' + db + '/'
+	weights_path = '/media/viprlab/01D31FFEF66D5170/Ice/'
 	if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
-		os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
+		os.mkdir(weights_path + 'Weights/'+ str(train_id) )	
+
+	# # path for babeen
+	# working_dir = '/home/babeen/Documents/ME_Autoencoders'
+	# root_dir = '/home/babeen/Documents/MMU_Datasets/' + db + '/'
+	# weights_path = '/home/babeen/Documents/MMU_Datasets/'
+	# if os.path.isdir(weights_path + 'Weights/'+ str(train_id) ) == False:
+	# 	os.mkdir(weights_path + 'Weights/'+ str(train_id) )			
 
 	weights_path = weights_path + "Weights/" + train_id + "/"
 
@@ -182,7 +184,9 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		# model = type_of_test(classes=classes)
 		# model.compile(loss=margin_loss, optimizer=adam, metrics=[metrics.categorical_accuracy])
 
-
+		# Send hyperparameters
+		lera_str = 'Sub_' + str(sub)
+		lera.log_hyperparams({ 'title':  lera_str})
 
 		model.compile(loss=['categorical_crossentropy', earth_mover_loss, earth_mover_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		f1_king = 0
@@ -212,7 +216,7 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 				# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(X), axis=0)
 				strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X_2)
 
-				model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+				model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history, LeraCallback()])
 				
 
 				# svm

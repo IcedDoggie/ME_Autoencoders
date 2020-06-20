@@ -140,33 +140,16 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 	sgd = optimizers.SGD(lr=learning_rate, decay=1e-7, momentum=0.9, nesterov=True)
 	adam = optimizers.Adam(lr=learning_rate, decay=1e-7)
 	stopping = EarlyStopping(monitor='loss', min_delta = 0, mode = 'min', patience=5)	
-	batch_size  = 2
+	batch_size  = 32
 	epochs = 100
 	total_samples = 0
 
-	# codes for epoch analysis
-	epochs_step = 100
-	epochs = 1
-	macro_f1_list = []
-	weighted_f1_list = []
-	loss_list = []
-	tot_mat_list = []
-	war_list = []
-	f1_list = []
-	uar_list = []
-	pred_list = []
-	y_list_list = []	
-	for counter in range(epochs_step):
-		# create separate tot_mat for diff epoch
-		tot_mat_list += [np.zeros((classes, classes))]
-		macro_f1_list += [0]
-		weighted_f1_list += [0]
-		loss_list += [0]
-		war_list += [0]
-		f1_list += [0]
-		uar_list += [0]
-		pred_list += [[]]
-		y_list_list += [[]]
+	# training config
+	tot_mat = np.zeros((classes, classes))
+	pred = []
+	y_list = []
+
+
 
 	# backend
 	if tf_backend_flag:
@@ -188,170 +171,102 @@ def train(type_of_test, train_id, preprocessing_type, classes=5, feature_type = 
 		lera_str = 'Sub_' + str(sub)
 		lera.log_hyperparams({ 'title':  lera_str})
 
+
 		model.compile(loss=['categorical_crossentropy', earth_mover_loss, earth_mover_loss], optimizer=adam, metrics=[metrics.categorical_accuracy])		
 		f1_king = 0
 
 		mean_e2 = np.zeros((classes))
 
-		
 
-		# epoch by epoch
-		for epoch_counter in range(epochs_step):
-			tot_mat = tot_mat_list[epoch_counter]
-			pred = pred_list[epoch_counter]
-			y_list = y_list_list[epoch_counter]
-			print("Current Training Epoch: " + str(epochs))
+		######################### Training ############################
+		loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
+		OS_loso_generator = create_generator_LOSO(casme2_OS_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
 
-			clf = SVC(kernel = 'linear', C = 1, decision_function_shape='ovr')
-			loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
-			OS_loso_generator = create_generator_LOSO(casme2_OS_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase='svc')
-			# current mean (non-accumulative)
-			# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(loso_generator), axis=1)
-			# print(helper_mean_e2)
-			# print(helper_mean_e2.shape)
+		# for X, y, non_binarized_y in loso_generator:
+		for (alpha, beta) in zip(loso_generator, OS_loso_generator):
+			X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
+			X_2, _, _ = beta[0], beta[1], beta[2]				
 
-			# for X, y, non_binarized_y in loso_generator:
-			for (alpha, beta) in zip(loso_generator, OS_loso_generator):
-				X, y, non_binarized_y = alpha[0], alpha[1], alpha[2]
-				X_2, _, _ = beta[0], beta[1], beta[2]				
-				# helper_mean_e2 = np.reshape(mean_e2, (1, classes))
-				# helper_mean_e2 = np.repeat(helper_mean_e2, repeats=len(X), axis=0)
-				strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X_2)
+			strain_distrib_horizontal, strain_distrib_vertical = compute_distribution_OS(X_2)
 
-				model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history, LeraCallback()])
-				
+			model.fit(X, [y, strain_distrib_horizontal, strain_distrib_vertical], batch_size = batch_size, epochs = epochs, shuffle = True, callbacks=[history])
+			
 
-				# svm
-				if classifier_flag == 'svc':
-					if attention == True:
-						print("attention")
-						encoder = Model(inputs = model.input, outputs = model.get_layer('flatten').get_output_at(1))
-						# encoder = Model(inputs = model.input, outputs = model.layers[-7].get_output_at(1))
-						plot_model(encoder, to_file='encoder.png', show_shapes=True)
-					else:
-						encoder = Model(inputs = model.input, outputs = model.layers[-2].output)
-					spatial_features = encoder.predict(X, batch_size = batch_size)
-					if tf_backend_flag == True:
-						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
+		# Resource Clear up
+		del X, y
 
-					clf.fit(spatial_features, non_binarized_y)
+		# log history results [losses, accuracy, epochs]
+		filename = './net_images/' + str(train_id) + '.txt'
+		f = open(filename, 'a')
+		f.write('Sub_' + str(sub) + '\n')
+		f.write('Loss Accuracy' + '\n')
+		for counter_loss in range(len(history.losses)):
+			curr_loss = str(history.losses[counter_loss])
+			curr_acc = str(history.accuracy[counter_loss])
+			print(curr_acc)
+			f.write(curr_loss + ' ')
+			f.write(curr_acc + '\n')
+		f.close()
 
-			# # compute mean and do mean assignment
-			# y_argmax, y_curr_feat = model.predict(X)
-			# y_argmax = np.argmax(y_argmax, axis=1)
-			# for feat_counter in range(len(y_curr_feat)):
-			# 	curr_y_argmax = y_argmax[feat_counter]
-			# 	curr_y_feat = y_curr_feat[feat_counter]
-			# 	mean_e2[curr_y_argmax] += np.mean(curr_y_feat)
-			# # normalize
-			# mean_e2 = (mean_e2 - np.amin(mean_e2)) / (np.amax(mean_e2) - np.amin(mean_e2))
-			# print(mean_e2)
+		# Test Time 
+		test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
 
 
-
-			# Resource Clear up
-			del X, y
-
-			# Test Time 
-			test_loso_generator = create_generator_LOSO(total_list, total_labels, classes, sub, preprocessing_type, spatial_size = spatial_size, train_phase = False)
+		for X, y, non_binarized_y in test_loso_generator:
 
 
-			for X, y, non_binarized_y in test_loso_generator:
-				# Spatial Encoding
-				# svm
-				if classifier_flag == 'svc':
-					spatial_features = encoder.predict(X, batch_size = batch_size)
-					if tf_backend_flag == True:
-						spatial_features = np.reshape(spatial_features, (spatial_features.shape[0], spatial_features.shape[-1]))
-					predicted_class = clf.predict(spatial_features)
+			spatial_features, _, _ = model.predict(X)
+			predicted_class = np.argmax(spatial_features, axis=1)
 
-				# softmax
-				elif classifier_flag == 'softmax':
-					# spatial_features = model.predict(X)
-					spatial_features, spatial_vector, _ = model.predict(X)
+			
+			non_binarized_y = non_binarized_y[0]
 
-					predicted_class = np.argmax(spatial_features, axis=1)
+			print(predicted_class)
+			print(non_binarized_y)	
 
-				
-				non_binarized_y = non_binarized_y[0]
-
-				print(predicted_class)
-				print(non_binarized_y)	
-
-				# for sklearn macro f1 calculation
-				for counter in range(len(predicted_class)):
-					pred += [predicted_class[counter]]
-					y_list += [non_binarized_y[counter]]
+			# for sklearn macro f1 calculation
+			for counter in range(len(predicted_class)):
+				pred += [predicted_class[counter]]
+				y_list += [non_binarized_y[counter]]
 
 
-				ct = confusion_matrix(non_binarized_y, predicted_class)
-				order = np.unique(np.concatenate((predicted_class, non_binarized_y)))	
-				mat = np.zeros((classes, classes))
-				for m in range(len(order)):
-					for n in range(len(order)):
-						mat[int(order[m]), int(order[n])] = ct[m, n]
-					   
-				tot_mat = mat + tot_mat
+			ct = confusion_matrix(non_binarized_y, predicted_class)
+			order = np.unique(np.concatenate((predicted_class, non_binarized_y)))	
+			mat = np.zeros((classes, classes))
+			for m in range(len(order)):
+				for n in range(len(order)):
+					mat[int(order[m]), int(order[n])] = ct[m, n]
+				   
+			tot_mat = mat + tot_mat
 
-				[f1, precision, recall] = fpr(tot_mat, classes)
-
-
-				if epoch_counter < 1:	 # avoid numerical problem
-					total_samples += len(non_binarized_y)
-
-				war = weighted_average_recall(tot_mat, classes, total_samples)
-				uar = unweighted_average_recall(tot_mat, classes)
-				macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
-
-				# results logging
-				tot_mat_list[epoch_counter] = tot_mat
-				macro_f1_list[epoch_counter] = macro_f1
-				weighted_f1_list[epoch_counter] = weighted_f1
-				loss_list[epoch_counter] = history.losses
-				war_list[epoch_counter] = war
-				f1_list[epoch_counter] = f1
-				uar_list[epoch_counter] = uar
-				pred_list[epoch_counter] = pred
-				y_list_list[epoch_counter] = y_list
-
-			# save the maximum epoch only (replace with maximum f1)
-			if f1 > f1_king:
-				f1_king = f1
-				weights_name = weights_path + str(sub) + '.h5'
-				model.save_weights(weights_name)
-
-			# Resource CLear up
-			del X, y, non_binarized_y
+			[f1, precision, recall] = fpr(tot_mat, classes)
 
 
-	# perform evaluation on each epoch
-	for epoch_counter in range(epochs_step):
-		tot_mat = tot_mat_list[epoch_counter]
-		f1 = f1_list[epoch_counter]
-		war = war_list[epoch_counter]
-		uar = uar_list[epoch_counter]
-		macro_f1 = macro_f1_list[epoch_counter]		
-		weighted_f1 = weighted_f1_list[epoch_counter]
-		loss = loss_list[epoch_counter]
-		epoch_analysis(root_dir, train_id, db, f1, war, uar, macro_f1, weighted_f1, loss)
+			total_samples += len(non_binarized_y)
 
-		# print(tot_mat)
-	# f1 = f1_list[highest_idx]
-	# macro_f1 = macro_f1_list[highest_idx]
-	# war = war_list[highest_idx]
-	# uar = uar_list[highest_idx]
-	# tot_mat = tot_mat_list[highest_idx]
-	# weighted_f1 = weighted_f1_list[highest_idx]
+			war = weighted_average_recall(tot_mat, classes, total_samples)
+			uar = unweighted_average_recall(tot_mat, classes)
+			macro_f1, weighted_f1 = sklearn_macro_f1(y_list, pred)
+
+
+
+		weights_name = weights_path + str(sub) + '.h5'
+		model.save_weights(weights_name)
+
+		# Resource CLear up
+		del X, y, non_binarized_y
+
+
+
+
 
 	# print confusion matrix of highest f1
-	highest_idx = np.argmax(f1_list)
-	highest_idx = epochs - 1 # take last epoch
 	print("Best Results: ")
-	print(tot_mat_list[highest_idx])
-	print("Micro F1: " + str(f1_list[highest_idx]))
-	print("Macro F1: " + str(macro_f1_list[highest_idx]))
-	print("WAR: " + str(war_list[highest_idx]))
-	print("UAR: " + str(uar_list[highest_idx]))
+	print(tot_mat)
+	print("Micro F1: " + str(f1))
+	print("Macro F1: " + str(macro_f1))
+	print("WAR: " + str(war))
+	print("UAR: " + str(uar))
 
 	return f1, war, uar, tot_mat, macro_f1, weighted_f1
 
